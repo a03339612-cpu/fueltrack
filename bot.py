@@ -9,11 +9,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 # --- Конфигурация ---
 # Замените 'YOUR_BOT_TOKEN' на токен вашего бота
 # Для безопасности лучше хранить токен в переменной окружения
-BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN") 
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8422469676:AAFhfdZsr4m0RD6FaHijswQQSG0BKn7x2-g") 
 
 # Замените 'YOUR_WEBAPP_URL' на URL, где будет развернут ваш FastAPI сервер
 # Например, 'https://your-app-name.onrender.com'
-WEBAPP_URL = os.getenv("WEBAPP_URL", "YOUR_WEBAPP_URL")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://fueltrack-7puj.onrender.com")
 
 # --- Инициализация ---
 bot = Bot(token=BOT_TOKEN)
@@ -60,3 +60,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
