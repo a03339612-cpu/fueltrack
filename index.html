@@ -285,18 +285,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: body ? JSON.stringify(body) : null,
             };
             const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Ошибка сети');
+                let errorMessage = `Ошибка сервера (статус: ${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData && errorData.detail) {
+                        // FastAPI validation error returns an array of objects
+                        if (Array.isArray(errorData.detail)) {
+                           const firstError = errorData.detail[0];
+                           errorMessage = `Неверные данные: ${firstError.msg} в поле '${firstError.loc.slice(-1)}'`;
+                        } 
+                        // Standard string detail from HTTPException
+                        else if (typeof errorData.detail === 'string') {
+                            errorMessage = errorData.detail;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Could not parse error JSON:", e);
+                }
+                throw new Error(errorMessage);
             }
+
             if (response.headers.get("content-type")?.includes("application/json")) {
                 return response.json();
             }
-            return response; // для файлов
+            return response;
         } catch (error) {
+            // This catch block receives a well-formed Error object
+            // from either the 'throw' above or from a network failure (`fetch` itself).
             customShowAlert(`Ошибка: ${error.message}`);
-            console.error(error);
-            throw error;
+            console.error("API Request Failed:", error);
+            throw error; // Re-throw so the calling function's catch block can execute
         }
     };
 
@@ -322,7 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
             endMileageInput.placeholder = `Больше ${activeCar.current_mileage.toFixed(0)}`;
         }
         
-        // Заполняем список авто в модальном окне
         carListContainer.innerHTML = '';
         state.cars.forEach(car => {
             const carDiv = document.createElement('div');
@@ -366,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Не удалось загрузить начальные данные', error);
             loader.classList.add('hidden');
-            showModal('cars'); // Показать окно добавления авто, если данных нет
+            showModal('cars');
         }
     };
 
@@ -391,6 +410,11 @@ document.addEventListener('DOMContentLoaded', () => {
             consumption_idle: activeCar.consumption_idle,
         };
 
+        if (!payload.end_mileage || !payload.date) {
+            customShowAlert('Пожалуйста, заполните конечный пробег и дату.');
+            return;
+        }
+
         if (payload.end_mileage < payload.start_mileage) {
             customShowAlert('Конечный пробег не может быть меньше начального.');
             return;
@@ -401,14 +425,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const result = await apiRequest('/logs', 'POST', payload);
                     
-                    // Обновляем данные авто в состоянии
                     const carIndex = state.cars.findIndex(c => c.id === state.activeCarId);
                     state.cars[carIndex].current_mileage = result.new_mileage;
                     state.cars[carIndex].current_fuel = result.new_fuel_level;
 
                     customShowAlert(`Расчет завершен!\nНовый остаток: ${result.new_fuel_level.toFixed(2)} л.`);
                     tripForm.reset();
-                    tripDateInput.valueAsDate = new Date(); // Сброс даты
+                    tripDateInput.valueAsDate = new Date();
                     updateUI();
                 } catch(e) {
                     console.error("Ошибка при расчете поездки", e);
@@ -458,8 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.activeCarId = newCar.id;
                 localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
             }
-            updateUI();
             addCarForm.reset();
+            updateUI();
             customShowAlert(`Автомобиль "${newCar.name}" добавлен. Теперь заполните его начальные данные в настройках (⚙️).`);
             openSettingsForCar(newCar.id);
         } catch(error) {
@@ -554,4 +577,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+
 
