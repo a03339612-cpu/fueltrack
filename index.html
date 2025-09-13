@@ -157,186 +157,220 @@
     </div>
 
 <script>
-// Обертка для всего скрипта, чтобы избежать глобальных переменных
-(function() {
-    // Ждем полной загрузки DOM, прежде чем что-либо делать
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
 
-            const API_BASE_URL = '';
-            const state = {
-                userId: String(tg.initDataUnsafe?.user?.id || 'test_user_123'),
-                cars: [],
-                activeCarId: null,
-            };
+        const state = {
+            userId: String(tg.initDataUnsafe?.user?.id || 'test_user_123'),
+            cars: [],
+            activeCarId: null,
+        };
 
-            // Получаем все элементы один раз для производительности
-            const DOMElements = {
-                loader: document.getElementById('loader'),
-                mainScreen: document.getElementById('main-screen'),
-                currentCarName: document.getElementById('current-car-name'),
-                currentCarPlate: document.getElementById('current-car-plate'),
-                currentMileage: document.getElementById('current-mileage'),
-                currentFuel: document.getElementById('current-fuel'),
-                tripForm: document.getElementById('trip-form'),
-                endMileageInput: document.getElementById('end-mileage'),
-                refueledInput: document.getElementById('refueled'),
-                idleHoursInput: document.getElementById('idle-hours'),
-                tripDateInput: document.getElementById('trip-date'),
-                settingsModal: document.getElementById('settings-modal'),
-                settingsForm: document.getElementById('settings-form'),
-                settingsCarId: document.getElementById('settings-car-id'),
-                settingsStartMileage: document.getElementById('settings-start-mileage'),
-                settingsInitialFuel: document.getElementById('settings-initial-fuel'),
-                settingsConsumptionDriving: document.getElementById('settings-consumption-driving'),
-                settingsConsumptionIdle: document.getElementById('settings-consumption-idle'),
-                carsModal: document.getElementById('cars-modal'),
-                carList: document.getElementById('car-list'),
-                addCarForm: document.getElementById('add-car-form'),
-                alertModal: document.getElementById('alert-modal'),
-                alertMessage: document.getElementById('alert-message'),
-                recentLogsCard: document.getElementById('recent-logs-card'),
-                recentLogsContainer: document.getElementById('recent-logs-container'),
-                reportStartDate: document.getElementById('report-start-date'),
-                reportEndDate: document.getElementById('report-end-date'),
-                editCarModal: document.getElementById('edit-car-modal'),
-                editCarForm: document.getElementById('edit-car-form'),
-                editCarId: document.getElementById('edit-car-id'),
-                editCarName: document.getElementById('edit-car-name'),
-                editCarPlate: document.getElementById('edit-car-plate'),
-            };
+        const DOMElements = {
+            loader: document.getElementById('loader'),
+            mainScreen: document.getElementById('main-screen'),
+            currentCarName: document.getElementById('current-car-name'),
+            currentCarPlate: document.getElementById('current-car-plate'),
+            currentMileage: document.getElementById('current-mileage'),
+            currentFuel: document.getElementById('current-fuel'),
+            tripForm: document.getElementById('trip-form'),
+            endMileageInput: document.getElementById('end-mileage'),
+            tripDateInput: document.getElementById('trip-date'),
+            settingsModal: document.getElementById('settings-modal'),
+            settingsForm: document.getElementById('settings-form'),
+            settingsCarId: document.getElementById('settings-car-id'),
+            settingsStartMileage: document.getElementById('settings-start-mileage'),
+            settingsInitialFuel: document.getElementById('settings-initial-fuel'),
+            settingsConsumptionDriving: document.getElementById('settings-consumption-driving'),
+            settingsConsumptionIdle: document.getElementById('settings-consumption-idle'),
+            carsModal: document.getElementById('cars-modal'),
+            carList: document.getElementById('car-list'),
+            addCarForm: document.getElementById('add-car-form'),
+            alertModal: document.getElementById('alert-modal'),
+            alertMessage: document.getElementById('alert-message'),
+            recentLogsCard: document.getElementById('recent-logs-card'),
+            recentLogsContainer: document.getElementById('recent-logs-container'),
+            reportStartDate: document.getElementById('report-start-date'),
+            reportEndDate: document.getElementById('report-end-date'),
+            editCarModal: document.getElementById('edit-car-modal'),
+            editCarForm: document.getElementById('edit-car-form'),
+            editCarId: document.getElementById('edit-car-id'),
+            editCarName: document.getElementById('edit-car-name'),
+            editCarPlate: document.getElementById('edit-car-plate'),
+        };
 
-            const showModal = (modalName) => {
-                if (modalName === 'settings') DOMElements.settingsModal.classList.remove('hidden');
-                if (modalName === 'cars') DOMElements.carsModal.classList.remove('hidden');
-                if (modalName === 'editCar') DOMElements.editCarModal.classList.remove('hidden');
-            };
+        const showModal = (modalName) => {
+            if (modalName === 'settings') DOMElements.settingsModal.classList.remove('hidden');
+            if (modalName === 'cars') DOMElements.carsModal.classList.remove('hidden');
+            if (modalName === 'editCar') DOMElements.editCarModal.classList.remove('hidden');
+        };
 
-            const hideModals = () => {
-                DOMElements.settingsModal.classList.add('hidden');
-                DOMElements.carsModal.classList.add('hidden');
-                DOMElements.editCarModal.classList.add('hidden');
-            };
-            
-            const customShowAlert = (message) => {
-                DOMElements.alertMessage.textContent = message;
-                DOMElements.alertModal.classList.remove('hidden');
-            };
+        const hideModals = () => {
+            DOMElements.settingsModal.classList.add('hidden');
+            DOMElements.carsModal.classList.add('hidden');
+            DOMElements.editCarModal.classList.add('hidden');
+        };
+        
+        const customShowAlert = (message) => {
+            DOMElements.alertMessage.textContent = message;
+            DOMElements.alertModal.classList.remove('hidden');
+        };
 
-            const apiRequest = async (endpoint, method = 'GET', body = null) => {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
-                        method,
-                        headers: { 'Content-Type': 'application/json' },
-                        body: body ? JSON.stringify(body) : null
-                    });
-                    if (!response.ok) {
-                        let errorMessage = `Ошибка ${response.status}`;
+        const apiRequest = async (endpoint, method = 'GET', body = null) => {
+            try {
+                const response = await fetch(`/api${endpoint}`, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body ? JSON.stringify(body) : null
+                });
+                if (!response.ok) {
+                    let errorMessage = `Ошибка ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.detail) errorMessage = Array.isArray(errorData.detail) ? errorData.detail[0].msg : errorData.detail;
+                    } catch (e) {}
+                    throw new Error(errorMessage);
+                }
+                return response.headers.get("content-type")?.includes("application/json") ? response.json() : response;
+            } catch (error) {
+                customShowAlert(`Сетевая ошибка: ${error.message}`);
+                throw error;
+            }
+        };
+
+        const updateUI = () => {
+            if (!state.activeCarId || state.cars.length === 0) {
+                showModal('cars'); DOMElements.mainScreen.classList.remove('hidden'); DOMElements.loader.classList.add('hidden'); return;
+            }
+            const activeCar = state.cars.find(c => c.id === state.activeCarId);
+            if (activeCar) {
+                DOMElements.currentCarName.textContent = activeCar.name;
+                DOMElements.currentCarPlate.textContent = activeCar.plate || '';
+                DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
+                DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
+                DOMElements.endMileageInput.min = activeCar.current_mileage;
+            }
+            DOMElements.carList.innerHTML = '';
+            state.cars.forEach(car => {
+                const carDiv = document.createElement('div');
+                carDiv.className = `flex justify-between items-center p-3 rounded-lg ${car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100'}`;
+                carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div class="flex items-center space-x-3"><button data-car-id="${car.id}" class="edit-btn text-xl">✏️</button><button data-car-id="${car.id}" class="delete-btn text-xl">🗑️</button>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}</div>`;
+                DOMElements.carList.appendChild(carDiv);
+                
+                carDiv.querySelector('.edit-btn').addEventListener('click', (e) => openEditCarModal(parseInt(e.currentTarget.dataset.carId)));
+                carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId)));
+                
+                const selectBtn = carDiv.querySelector('.select-btn');
+                // ИСПРАВЛЕНИЕ: Проверяем, существует ли кнопка, прежде чем вешать обработчик
+                if (selectBtn) {
+                    selectBtn.addEventListener('click', async (e) => {
                         try {
-                            const errorData = await response.json();
-                            if (errorData.detail) errorMessage = Array.isArray(errorData.detail) ? errorData.detail[0].msg : errorData.detail;
-                        } catch (e) {}
-                        throw new Error(errorMessage);
-                    }
-                    return response.headers.get("content-type")?.includes("application/json") ? response.json() : response;
-                } catch (error) {
-                    customShowAlert(`Сетевая ошибка: ${error.message}`);
-                    throw error;
-                }
-            };
-
-            const renderRecentLogs = (logs) => { /* ... код из предыдущей версии ... */ };
-            const loadRecentLogs = async (carId) => { /* ... код из предыдущей версии ... */ };
-
-            const updateUI = () => {
-                if (!state.activeCarId || state.cars.length === 0) {
-                    showModal('cars'); DOMElements.mainScreen.classList.remove('hidden'); DOMElements.loader.classList.add('hidden'); return;
-                }
-                const activeCar = state.cars.find(c => c.id === state.activeCarId);
-                if (activeCar) {
-                    DOMElements.currentCarName.textContent = activeCar.name;
-                    DOMElements.currentCarPlate.textContent = activeCar.plate || '';
-                    DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
-                    DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
-                    DOMElements.endMileageInput.min = activeCar.current_mileage;
-                    loadRecentLogs(activeCar.id);
-                }
-                DOMElements.carList.innerHTML = '';
-                state.cars.forEach(car => {
-                    const carDiv = document.createElement('div');
-                    carDiv.className = `flex justify-between items-center p-3 rounded-lg ${car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100'}`;
-                    carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div class="flex items-center space-x-3"><button data-car-id="${car.id}" class="edit-btn text-xl">✏️</button><button data-car-id="${car.id}" class="delete-btn text-xl">🗑️</button>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}</div>`;
-                    DOMElements.carList.appendChild(carDiv);
-                    carDiv.querySelector('.edit-btn').addEventListener('click', (e) => openEditCarModal(parseInt(e.currentTarget.dataset.carId, 10)));
-                    carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId, 10)));
-                    const selectBtn = carDiv.querySelector('.select-btn');
-                    if (selectBtn) { selectBtn.addEventListener('click', async (e) => {
-                        try {
-                            await apiRequest(`/cars/activate/${parseInt(e.currentTarget.dataset.carId, 10)}/${state.userId}`, 'PUT');
-                            state.activeCarId = parseInt(e.currentTarget.dataset.carId, 10);
+                            const carId = parseInt(e.currentTarget.dataset.carId);
+                            await apiRequest(`/cars/activate/${carId}/${state.userId}`, 'PUT');
+                            state.activeCarId = carId;
                             updateUI(); hideModals();
                         } catch (err) { console.error("Failed to activate car", err); }
-                    }); }
-                });
-                DOMElements.mainScreen.classList.remove('hidden'); DOMElements.loader.classList.add('hidden');
-                document.body.classList.add('ready');
-            };
-
-            const openSettingsForCar = (carId) => { /* ... код из предыдущей версии ... */ };
-            const openEditCarModal = (carId) => { /* ... код из предыдущей версии ... */ };
-            const handleDeleteCar = (carId) => { /* ... код из предыдущей версии ... */ };
-
-            const setupEventListeners = () => {
-                DOMElements.tripForm.addEventListener('submit', (e) => { e.preventDefault(); /* ... логика ... */ });
-                DOMElements.settingsForm.addEventListener('submit', (e) => { e.preventDefault(); /* ... логика ... */ });
-                DOMElements.addCarForm.addEventListener('submit', (e) => { e.preventDefault(); /* ... логика ... */ });
-                DOMElements.editCarForm.addEventListener('submit', (e) => { e.preventDefault(); /* ... логика ... */ });
-                
-                document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
-                document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
-                document.getElementById('reset-btn').addEventListener('click', () => { DOMElements.tripForm.reset(); DOMElements.tripDateInput.valueAsDate = new Date(); });
-                document.getElementById('download-report-btn').addEventListener('click', () => { /* ... логика ... */ });
-                
-                document.getElementById('close-settings-btn').addEventListener('click', hideModals);
-                document.getElementById('close-cars-btn').addEventListener('click', hideModals);
-                document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
-                document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
-            };
-
-            const initApp = async () => {
-                const now = new Date();
-                DOMElements.tripDateInput.valueAsDate = now;
-                DOMElements.reportEndDate.valueAsDate = now;
-                DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
-
-                setupEventListeners();
-                
-                try {
-                    const data = await apiRequest(`/init/${state.userId}`);
-                    state.cars = data.cars; 
-                    state.activeCarId = data.active_car_id;
-                    updateUI();
-                } catch (error) {
-                    console.error("Critical error on init:", error);
-                    DOMElements.loader.classList.add('hidden');
-                    customShowAlert("Не удалось загрузить данные. Пожалуйста, попробуйте перезапустить приложение.");
+                    });
                 }
-            };
+            });
+            DOMElements.mainScreen.classList.remove('hidden');
+            DOMElements.loader.classList.add('hidden');
+            document.body.classList.add('ready');
+        };
 
-            // Запуск приложения
-            initApp();
+        const openEditCarModal = (carId) => {
+            const car = state.cars.find(c => c.id === carId);
+            if (car) {
+                DOMElements.editCarId.value = car.id;
+                DOMElements.editCarName.value = car.name;
+                DOMElements.editCarPlate.value = car.plate || '';
+                showModal('editCar');
+            }
+        };
+        
+        const handleDeleteCar = (carId) => {
+            const car = state.cars.find(c => c.id === carId);
+            if (!car) return;
+            tg.showConfirm(`Удалить "${car.name}" и всю историю?`, async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        await apiRequest(`/cars/${carId}/${state.userId}`, 'DELETE');
+                        customShowAlert(`Автомобиль "${car.name}" удален.`);
+                        await initApp(); // Полная перезагрузка данных
+                        hideModals();
+                    } catch (error) { console.error('Ошибка удаления', error); }
+                }
+            });
+        };
+        
+        const openSettingsForCar = (carId) => {
+             const car = state.cars.find(c => c.id === carId);
+            if (car) {
+                DOMElements.settingsCarId.value = car.id;
+                DOMElements.settingsStartMileage.value = car.current_mileage || 0;
+                DOMElements.settingsInitialFuel.value = car.current_fuel || 0;
+                DOMElements.settingsConsumptionDriving.value = car.consumption_driving || 8.0;
+                DOMElements.settingsConsumptionIdle.value = car.consumption_idle || 1.0;
+                showModal('settings');
+            }
+        };
 
-        } catch (error) {
-            // Глобальный обработчик ошибок, если что-то пошло не так на самом раннем этапе
-            console.error("A critical error occurred during initialization:", error);
-            document.body.innerHTML = `<div style="padding: 20px; text-align: center;">Критическая ошибка. Пожалуйста, перезапустите приложение.</div>`;
-        }
-    });
-})();
+        const setupEventListeners = () => {
+            // ... (все обработчики форм и кнопок)
+            document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
+            document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
+            document.getElementById('close-settings-btn').addEventListener('click', hideModals);
+            document.getElementById('close-cars-btn').addEventListener('click', hideModals);
+            document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
+            document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
+
+             DOMElements.editCarForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const carId = parseInt(DOMElements.editCarId.value);
+                const payload = { name: DOMElements.editCarName.value, plate: DOMElements.editCarPlate.value };
+                try {
+                    await apiRequest(`/cars/details/${carId}`, 'PUT', payload);
+                    const carIndex = state.cars.findIndex(c => c.id === carId);
+                    state.cars[carIndex].name = payload.name;
+                    state.cars[carIndex].plate = payload.plate;
+                    updateUI(); hideModals(); customShowAlert('Данные автомобиля обновлены.');
+                } catch (error) { console.error('Ошибка при редактировании авто', error); }
+            });
+
+             DOMElements.settingsForm.addEventListener('submit', async(e) => { /* ... */ });
+             DOMElements.addCarForm.addEventListener('submit', async(e) => { /* ... */ });
+             // ... и так далее для всех форм
+        };
+
+        const initApp = async () => {
+            const now = new Date();
+            DOMElements.tripDateInput.valueAsDate = now;
+            DOMElements.reportEndDate.valueAsDate = now;
+            DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            setupEventListeners();
+            
+            try {
+                const data = await apiRequest(`/init/${state.userId}`);
+                state.cars = data.cars; 
+                state.activeCarId = data.active_car_id;
+                updateUI();
+            } catch (error) {
+                DOMElements.loader.classList.add('hidden');
+            }
+        };
+
+        initApp();
+
+    } catch (e) {
+        document.body.innerHTML = `<div style="padding: 20px; color: red;">Критическая ошибка JS: ${e.message}</div>`;
+    }
+});
 </script>
+
 </body>
 </html>
 
