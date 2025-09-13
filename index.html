@@ -82,15 +82,7 @@
             gap: 0.5rem 1rem;
             align-items: center;
         }
-        .table-like > div {
-             padding: 0.25rem 0;
-        }
-        .table-like .font-bold {
-            grid-column: 1 / -1;
-            padding-top: 0.5rem;
-            border-bottom: 1px solid var(--tg-theme-hint-color);
-            margin-bottom: 0.25rem;
-        }
+        /* ИСПРАВЛЕНИЕ: Удалено проблемное правило отсюда */
     </style>
 </head>
 <body>
@@ -104,7 +96,6 @@
                     <h1 class="text-xl font-bold" id="current-car-name">Мое авто</h1>
                     <p class="text-sm" id="current-car-plate"></p>
                 </div>
-                <!-- ИЗМЕНЕНИЕ: Кнопки вынесены сюда -->
                 <div class="flex items-center space-x-2">
                     <button id="main-settings-btn" class="text-2xl">⚙️</button>
                     <button id="select-car-btn" class="text-sm text-blue-500">Сменить</button>
@@ -116,11 +107,9 @@
             </div>
         </div>
         
-        <!-- ИЗМЕНЕНИЕ: Карта с последними расчетами -->
         <div id="recent-logs-card" class="card hidden">
             <h2 class="text-lg font-bold mb-4">Последние расчеты</h2>
             <div id="recent-logs-container" class="text-sm space-y-2">
-                <!-- Сюда будут добавляться записи -->
             </div>
         </div>
 
@@ -128,10 +117,7 @@
             <h2 class="text-lg font-bold mb-4">Расчет поездки</h2>
             <form id="trip-form">
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="input-group col-span-2">
-                        <label for="end-mileage">Конечный пробег (км)</label>
-                        <input type="number" id="end-mileage" class="input-field" placeholder="Напр. 150000" required>
-                    </div>
+                    <div class="input-group col-span-2"><label for="end-mileage">Конечный пробег (км)</label><input type="number" id="end-mileage" class="input-field" placeholder="Напр. 150000" required></div>
                     <div class="input-group"><label for="refueled">Заправлено (л)</label><input type="number" step="0.01" id="refueled" class="input-field" value="0"></div>
                     <div class="input-group"><label for="idle-hours">Простой (часы)</label><input type="number" step="0.1" id="idle-hours" class="input-field" value="0"></div>
                     <div class="input-group col-span-2"><label for="trip-date">Дата</label><input type="date" id="trip-date" class="input-field" required></div>
@@ -145,36 +131,22 @@
         
         <div class="card">
              <h2 class="text-lg font-bold mb-4">Отчет</h2>
-             <!-- ИЗМЕНЕНИЕ: Выбор периода для отчета -->
              <div class="grid grid-cols-2 gap-4">
-                 <div class="input-group">
-                    <label for="report-start-date">Дата начала</label>
-                    <input type="date" id="report-start-date" class="input-field">
-                </div>
-                 <div class="input-group">
-                    <label for="report-end-date">Дата окончания</label>
-                    <input type="date" id="report-end-date" class="input-field">
-                </div>
+                 <div class="input-group"><label for="report-start-date">Дата начала</label><input type="date" id="report-start-date" class="input-field"></div>
+                 <div class="input-group"><label for="report-end-date">Дата окончания</label><input type="date" id="report-end-date" class="input-field"></div>
              </div>
             <button id="download-report-btn" class="btn btn-secondary mt-2">Скачать отчет (XLSX)</button>
         </div>
     </div>
 
-    <!-- Модальные окна (остаются без изменений, кроме удаления кнопки настроек из списка) -->
-    <div id="settings-modal" class="modal-backdrop hidden"><div class="modal-content">...</div></div>
-    <div id="cars-modal" class="modal-backdrop hidden"><div class="modal-content">...</div></div>
-    <div id="alert-modal" class="modal-backdrop hidden"><div class="modal-content text-center">...</div></div>
+    <!-- Модальные окна -->
+    <div id="settings-modal" class="modal-backdrop hidden"></div>
+    <div id="cars-modal" class="modal-backdrop hidden"></div>
+    <div id="alert-modal" class="modal-backdrop hidden"></div>
 
 <script>
-// Весь JS код ниже. Скопируйте его целиком.
-// В модальных окнах выше можно оставить заглушки '...' или скопировать их из предыдущей версии, т.к. их структура не менялась.
-// Для простоты я включу полный JS код ниже.
-
-// --- Полный JS ---
-// Удалите старый <script> и вставьте этот.
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- НАЧАЛО БЛОКА HTML ДЛЯ МОДАЛЬНЫХ ОКОН (вставьте сюда HTML из предыдущей версии) ---
+    // --- Вставка HTML для модальных окон ---
     document.getElementById('settings-modal').innerHTML = `
         <div class="modal-content">
             <h2 class="text-xl font-bold mb-4">Настройки авто</h2>
@@ -208,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <p id="alert-message" class="mb-4 text-lg" style="white-space: pre-wrap;"></p>
             <button id="close-alert-btn" class="btn btn-primary">OK</button>
         </div>`;
-    // --- КОНЕЦ БЛОКА HTML ДЛЯ МОДАЛЬНЫХ ОКОН ---
     
     const tg = window.Telegram.WebApp;
     tg.ready();
@@ -225,19 +196,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const loader = document.getElementById('loader');
     const mainScreen = document.getElementById('main-screen');
     const mainSettingsBtn = document.getElementById('main-settings-btn');
-    
-    // ... (остальные элементы UI)
     const currentCarNameEl = document.getElementById('current-car-name');
     const currentCarPlateEl = document.getElementById('current-car-plate');
     const currentMileageEl = document.getElementById('current-mileage');
     const currentFuelEl = document.getElementById('current-fuel');
-
     const tripForm = document.getElementById('trip-form');
     const endMileageInput = document.getElementById('end-mileage');
     const refueledInput = document.getElementById('refueled');
     const idleHoursInput = document.getElementById('idle-hours');
     const tripDateInput = document.getElementById('trip-date');
-
     const settingsModal = document.getElementById('settings-modal');
     const settingsForm = document.getElementById('settings-form');
     const settingsCarIdInput = document.getElementById('settings-car-id');
@@ -245,30 +212,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsInitialFuelInput = document.getElementById('settings-initial-fuel');
     const settingsConsumptionDrivingInput = document.getElementById('settings-consumption-driving');
     const settingsConsumptionIdleInput = document.getElementById('settings-consumption-idle');
-    
     const carsModal = document.getElementById('cars-modal');
     const carListContainer = document.getElementById('car-list');
     const addCarForm = document.getElementById('add-car-form');
-    
     const alertModal = document.getElementById('alert-modal');
     const alertMessage = document.getElementById('alert-message');
     const closeAlertBtn = document.getElementById('close-alert-btn');
-    
     const recentLogsCard = document.getElementById('recent-logs-card');
     const recentLogsContainer = document.getElementById('recent-logs-container');
-    
     const reportStartDateInput = document.getElementById('report-start-date');
     const reportEndDateInput = document.getElementById('report-end-date');
 
     // --- Функции ---
-
     const customShowAlert = (message) => {
         alertMessage.textContent = message;
         alertModal.classList.remove('hidden');
     };
     
     const apiRequest = async (endpoint, method = 'GET', body = null) => {
-        // ... (код apiRequest без изменений из прошлой версии)
         try {
             const headers = { 'Content-Type': 'application/json' };
             const options = { method, headers, body: body ? JSON.stringify(body) : null, };
@@ -290,30 +251,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // ИСПРАВЛЕНИЕ: Функция отрисовки таблицы
     const renderRecentLogs = (logs) => {
         if (!logs || logs.length === 0) {
             recentLogsCard.classList.add('hidden');
             return;
         }
         recentLogsContainer.innerHTML = '';
+        
+        // Создаем заголовок таблицы
         const header = document.createElement('div');
-        header.className = 'table-like';
-        header.innerHTML = `<div class="font-bold text-gray-500 text-xs col-span-1">ДАТА</div>
-                            <div class="font-bold text-gray-500 text-xs text-right">ПРОБЕГ</div>
-                            <div class="font-bold text-gray-500 text-xs text-right">РАСХОД</div>
-                            <div class="font-bold text-gray-500 text-xs text-right">ОСТАТОК</div>`;
+        header.className = 'table-like pb-2 mb-2 border-b border-gray-300';
+        header.innerHTML = `
+            <div class="font-semibold text-gray-500 text-xs">ДАТА</div>
+            <div class="font-semibold text-gray-500 text-xs text-right">ПРОБЕГ</div>
+            <div class="font-semibold text-gray-500 text-xs text-right">РАСХОД</div>
+            <div class="font-semibold text-gray-500 text-xs text-right">ОСТАТОК</div>
+        `;
         recentLogsContainer.appendChild(header);
 
+        // Создаем строки с данными
         logs.forEach(log => {
             const logDiv = document.createElement('div');
-            logDiv.className = 'table-like border-t border-gray-200';
+            logDiv.className = 'table-like pt-2'; // Отступ сверху для каждой строки
             const tripDist = log.trip_distance > 0 ? `+${log.trip_distance.toFixed(0)}` : '0';
             logDiv.innerHTML = `
                 <div>${new Date(log.date).toLocaleDateString('ru-RU')}</div>
                 <div class="text-right">${tripDist} км</div>
                 <div class="text-right text-red-500">-${log.fuel_consumed_total.toFixed(1)} л</div>
                 <div class="text-right font-semibold">${log.final_fuel_level.toFixed(1)} л</div>
-                ${log.refueled > 0 ? `<div class="col-span-4 text-right text-green-600 text-xs">+${log.refueled.toFixed(1)} л заправка</div>` : ''}
+                ${log.refueled > 0 ? `<div class="col-span-4 text-right text-green-600 text-xs pt-1">+${log.refueled.toFixed(1)} л заправка</div>` : ''}
             `;
             recentLogsContainer.appendChild(logDiv);
         });
@@ -333,40 +300,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateUI = () => {
         if (!state.activeCarId || state.cars.length === 0) {
-            // ... (поведение без авто, без изменений)
-            showModal('cars');
-            mainScreen.classList.remove('hidden');
-            loader.classList.add('hidden');
-            return;
+            showModal('cars'); mainScreen.classList.remove('hidden'); loader.classList.add('hidden'); return;
         }
-
         const activeCar = state.cars.find(c => c.id === state.activeCarId);
         if (activeCar) {
-            // ... (обновление данных об авто, без изменений)
             currentCarNameEl.textContent = activeCar.name;
             currentCarPlateEl.textContent = activeCar.plate || '';
             currentMileageEl.textContent = activeCar.current_mileage.toFixed(0);
             currentFuelEl.textContent = activeCar.current_fuel.toFixed(2);
             endMileageInput.min = activeCar.current_mileage;
             endMileageInput.placeholder = `Больше ${activeCar.current_mileage.toFixed(0)}`;
-            loadRecentLogs(activeCar.id); // Загружаем логи для активного авто
+            loadRecentLogs(activeCar.id);
         }
-        
         carListContainer.innerHTML = '';
         state.cars.forEach(car => {
             const carDiv = document.createElement('div');
-            carDiv.className = 'flex justify-between items-center p-3 rounded-lg';
-            carDiv.className += car.id === state.activeCarId ? ' bg-blue-100' : ' bg-gray-100';
-            
-            // ИЗМЕНЕНИЕ: Убрана кнопка настроек ⚙️
-            carDiv.innerHTML = `
-                <div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div>
-                <div>
-                    ${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : '<span class="text-sm font-bold text-green-600">Активен</span>'}
-                </div>
-            `;
+            carDiv.className = 'flex justify-between items-center p-3 rounded-lg ' + (car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100');
+            carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : '<span class="text-sm font-bold text-green-600">Активен</span>'}</div>`;
             carListContainer.appendChild(carDiv);
-
             const selectBtn = carDiv.querySelector('.select-btn');
             if (selectBtn) {
                 selectBtn.addEventListener('click', async (e) => {
@@ -381,19 +332,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        
-        mainScreen.classList.remove('hidden');
-        loader.classList.add('hidden');
+        mainScreen.classList.remove('hidden'); loader.classList.add('hidden');
     };
     
-    // ... (функции showModal, hideModals, openSettingsForCar без изменений)
     const showModal = (modalName) => {
         if (modalName === 'settings') settingsModal.classList.remove('hidden');
         if (modalName === 'cars') carsModal.classList.remove('hidden');
     };
     const hideModals = () => {
-        settingsModal.classList.add('hidden');
-        carsModal.classList.add('hidden');
+        settingsModal.classList.add('hidden'); carsModal.classList.add('hidden');
     };
     const openSettingsForCar = (carId) => {
         const car = state.cars.find(c => c.id === carId);
@@ -410,49 +357,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadInitialData = async () => {
         try {
             const data = await apiRequest(`/init/${state.userId}`);
-            state.cars = data.cars;
-            state.activeCarId = data.active_car_id;
-            updateUI();
-        } catch (error) {
-            loader.classList.add('hidden');
-            showModal('cars');
-        }
+            state.cars = data.cars; state.activeCarId = data.active_car_id; updateUI();
+        } catch (error) { loader.classList.add('hidden'); showModal('cars'); }
     };
     
     const handleTripCalculation = async (e) => {
         e.preventDefault();
-        // ... (логика расчета без изменений)
         const activeCar = state.cars.find(c => c.id === state.activeCarId);
         if (!activeCar) return customShowAlert('Сначала выберите автомобиль.');
-        const payload = {
-            car_id: state.activeCarId, user_id: state.userId,
-            end_mileage: parseFloat(endMileageInput.value),
-            refueled: parseFloat(refueledInput.value) || 0,
-            idle_hours: parseFloat(idleHoursInput.value) || 0,
-            date: tripDateInput.value, start_mileage: activeCar.current_mileage,
-            start_fuel: activeCar.current_fuel, consumption_driving: activeCar.consumption_driving,
-            consumption_idle: activeCar.consumption_idle,
-        };
+        const payload = { car_id: state.activeCarId, user_id: state.userId, end_mileage: parseFloat(endMileageInput.value), refueled: parseFloat(refueledInput.value) || 0, idle_hours: parseFloat(idleHoursInput.value) || 0, date: tripDateInput.value, start_mileage: activeCar.current_mileage, start_fuel: activeCar.current_fuel, consumption_driving: activeCar.consumption_driving, consumption_idle: activeCar.consumption_idle };
         if (!payload.end_mileage || !payload.date) return customShowAlert('Заполните конечный пробег и дату.');
         if (payload.end_mileage < payload.start_mileage) return customShowAlert('Конечный пробег не может быть меньше начального.');
-        
         tg.showConfirm(`Рассчитать поездку?`, async (confirmed) => {
             if(confirmed) {
                 try {
                     const result = await apiRequest('/logs', 'POST', payload);
                     const carIndex = state.cars.findIndex(c => c.id === state.activeCarId);
-                    state.cars[carIndex].current_mileage = result.new_mileage;
-                    state.cars[carIndex].current_fuel = result.new_fuel_level;
+                    state.cars[carIndex].current_mileage = result.new_mileage; state.cars[carIndex].current_fuel = result.new_fuel_level;
                     customShowAlert(`Расчет завершен!\nНовый остаток: ${result.new_fuel_level.toFixed(2)} л.`);
-                    tripForm.reset();
-                    tripDateInput.valueAsDate = new Date();
-                    updateUI(); // Перерисовываем UI, чтобы обновить и логи
+                    tripForm.reset(); tripDateInput.valueAsDate = new Date(); updateUI();
                 } catch(e) { console.error("Ошибка при расчете поездки", e); }
             }
         });
     };
     
-    // ... (handleSettingsSave, handleAddCar без изменений)
     const handleSettingsSave = async (e) => {
         e.preventDefault();
         const carId = parseInt(settingsCarIdInput.value, 10);
@@ -461,9 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedCar = await apiRequest(`/cars/${carId}`, 'PUT', payload);
             const carIndex = state.cars.findIndex(c => c.id === carId);
             state.cars[carIndex] = { ...state.cars[carIndex], ...updatedCar };
-            updateUI();
-            hideModals();
-            customShowAlert('Настройки сохранены.');
+            updateUI(); hideModals(); customShowAlert('Настройки сохранены.');
         } catch (error) { console.error('Ошибка сохранения настроек', error); }
     };
     const handleAddCar = async (e) => {
@@ -472,37 +398,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload.name) return customShowAlert('Введите марку и модель.');
         try {
             const newCar = await apiRequest('/cars', 'POST', payload);
-            state.cars.push(newCar);
-            state.activeCarId = newCar.id; // Сразу делаем новую машину активной
-            addCarForm.reset();
-            updateUI();
-            hideModals(); // Закрываем окно выбора
+            state.cars.push(newCar); state.activeCarId = newCar.id; addCarForm.reset(); updateUI(); hideModals();
             customShowAlert(`Автомобиль "${newCar.name}" добавлен. Теперь заполните его начальные данные в настройках (⚙️).`);
             openSettingsForCar(newCar.id);
         } catch(error) { console.error('Ошибка добавления авто', error); }
     };
 
     const handleReportDownload = async () => {
-        // ИЗМЕНЕНИЕ: читаем даты из новых полей
-        const startDate = reportStartDateInput.value;
-        const endDate = reportEndDateInput.value;
-
+        const startDate = reportStartDateInput.value; const endDate = reportEndDateInput.value;
         if (!startDate || !endDate) return customShowAlert('Выберите начальную и конечную дату для отчета.');
         if (!state.activeCarId) return customShowAlert('Выберите автомобиль.');
-        
         try {
             const response = await apiRequest(`/report?car_id=${state.activeCarId}&start_date=${startDate}&end_date=${endDate}`);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
+            const blob = await response.blob(); const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.style.display = 'none'; a.href = url;
             const car = state.cars.find(c => c.id === state.activeCarId);
             a.download = `report_${car.name.replace(' ', '_')}_${startDate}_${endDate}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
+            document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); a.remove();
         } catch (error) { console.error('Ошибка скачивания отчета', error); }
     };
 
@@ -510,16 +422,10 @@ document.addEventListener('DOMContentLoaded', () => {
     tripForm.addEventListener('submit', handleTripCalculation);
     settingsForm.addEventListener('submit', handleSettingsSave);
     addCarForm.addEventListener('submit', handleAddCar);
-    
-    // Новый обработчик для главной кнопки настроек
     mainSettingsBtn.addEventListener('click', () => {
-        if (state.activeCarId) {
-            openSettingsForCar(state.activeCarId);
-        } else {
-            customShowAlert('Сначала добавьте или выберите автомобиль.');
-        }
+        if (state.activeCarId) { openSettingsForCar(state.activeCarId); } 
+        else { customShowAlert('Сначала добавьте или выберите автомобиль.'); }
     });
-
     document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
     document.getElementById('reset-btn').addEventListener('click', () => { tripForm.reset(); tripDateInput.valueAsDate = new Date(); });
     document.getElementById('close-settings-btn').addEventListener('click', hideModals);
@@ -528,11 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAlertBtn.addEventListener('click', () => alertModal.classList.add('hidden'));
 
     // Установка дат по умолчанию
-    tripDateInput.valueAsDate = new Date();
-    const now = new Date();
+    tripDateInput.valueAsDate = new Date(); const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    reportEndDateInput.valueAsDate = now;
-    reportStartDateInput.valueAsDate = firstDayOfMonth;
+    reportEndDateInput.valueAsDate = now; reportStartDateInput.valueAsDate = firstDayOfMonth;
 
     loadInitialData();
 });
