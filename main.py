@@ -1,286 +1,305 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends, Query
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
+import sqlite3
+from fastapi import FastAPI, HTTPException, Response, Query
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
-from sqlalchemy.exc import IntegrityError
-import datetime
-import io
+from datetime import date
 import openpyxl
+from openpyxl.styles import Font, Alignment
 
-# --- Конфигурация базы данных ---
-DATABASE_URL = "sqlite:///./fuel_tracker.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# --- Настройка базы данных ---
+DB_FILE = "fuel_tracker.db"
 
-# --- Модели SQLAlchemy (Структура таблиц БД) ---
-class Car(Base):
-    __tablename__ = "cars"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, index=True)
-    name = Column(String, index=True)
-    plate = Column(String, nullable=True)
-    
-    # Текущие значения, обновляемые после каждого расчета
-    current_mileage = Column(Float, default=0.0)
-    current_fuel = Column(Float, default=0.0)
-    
-    # Настройки по умолчанию
-    consumption_driving = Column(Float, default=8.0) # л/100км
-    consumption_idle = Column(Float, default=1.0) # л/час
+def init_db():
+    if not os.path.exists(DB_FILE):
+        print("Creating database...")
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Таблица пользователей (хотя user_id из телеграм)
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id TEXT UNIQUE NOT NULL
+        )''')
 
+        # Таблица автомобилей
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cars (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            plate TEXT,
+            current_mileage REAL DEFAULT 0,
+            current_fuel REAL DEFAULT 0,
+            consumption_driving REAL DEFAULT 8.0,
+            consumption_idle REAL DEFAULT 1.0,
+            is_active BOOLEAN DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users (telegram_id)
+        )''')
 
-class FuelLog(Base):
-    __tablename__ = "fuel_logs"
-    id = Column(Integer, primary_key=True, index=True)
-    car_id = Column(Integer, ForeignKey("cars.id"))
-    user_id = Column(String)
-    date = Column(Date)
-    
-    start_mileage = Column(Float)
-    end_mileage = Column(Float)
-    
-    refueled = Column(Float)
-    idle_hours = Column(Float)
-    
-    consumption_driving = Column(Float) # сохраненный на момент расчета
-    consumption_idle = Column(Float) # сохраненный на момент расчета
-    
-    calculated_fuel_after = Column(Float)
+        # Таблица логов поездок
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fuel_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            car_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            start_mileage REAL NOT NULL,
+            end_mileage REAL NOT NULL,
+            trip_distance REAL NOT NULL,
+            refueled REAL DEFAULT 0,
+            idle_hours REAL DEFAULT 0,
+            fuel_consumed_driving REAL NOT NULL,
+            fuel_consumed_idle REAL NOT NULL,
+            fuel_consumed_total REAL NOT NULL,
+            fuel_after_trip REAL NOT NULL,
+            final_fuel_level REAL NOT NULL,
+            FOREIGN KEY (car_id) REFERENCES cars (id)
+        )''')
+        
+        conn.commit()
+        conn.close()
+        print("Database created successfully.")
 
-
-# Создаем таблицы в БД при запуске
-Base.metadata.create_all(bind=engine)
-
-# --- Pydantic модели (для валидации данных API) ---
+# --- Модели данных (Pydantic) ---
 class CarBase(BaseModel):
     name: str
     plate: Optional[str] = None
-    
+
 class CarCreate(CarBase):
     user_id: str
 
 class CarUpdate(BaseModel):
-    current_mileage: Optional[float] = None
-    current_fuel: Optional[float] = None
-    consumption_driving: Optional[float] = None
-    consumption_idle: Optional[float] = None
+    current_mileage: float = Field(..., gt=0)
+    current_fuel: float = Field(..., ge=0)
+    consumption_driving: float = Field(..., gt=0)
+    consumption_idle: float = Field(..., gt=0)
 
-class CarResponse(CarBase):
+class Car(CarBase):
     id: int
     user_id: str
     current_mileage: float
     current_fuel: float
     consumption_driving: float
     consumption_idle: float
-    
-    class Config:
-        from_attributes = True
+    is_active: bool
 
 class LogCreate(BaseModel):
     car_id: int
     user_id: str
+    date: date
+    start_mileage: float
     end_mileage: float
     refueled: float
     idle_hours: float
-    date: datetime.date
-    start_mileage: float
-    start_fuel: float
     consumption_driving: float
     consumption_idle: float
+    start_fuel: float
 
-class LogResponse(BaseModel):
-    id: int
-    date: datetime.date
-    start_mileage: float
-    end_mileage: float
+class LogEntryResponse(BaseModel):
+    date: date
+    trip_distance: float
     refueled: float
-    idle_hours: float
-    calculated_fuel_after: float
-
-    class Config:
-        from_attributes = True
-
-class InitDataResponse(BaseModel):
-    cars: List[CarResponse]
-    active_car_id: Optional[int] = None
-
-class CalculationResult(BaseModel):
-    new_mileage: float
-    new_fuel_level: float
+    fuel_consumed_total: float
+    final_fuel_level: float
 
 
-# --- FastAPI приложение ---
-app = FastAPI(title="Fuel Tracker API")
+class InitData(BaseModel):
+    cars: List[Car]
+    active_car_id: Optional[int]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # Для простоты разработки, в продакшене лучше указать конкретный домен
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Функция для получения сессии БД
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# --- Инициализация FastAPI и БД ---
+init_db()
+app = FastAPI()
+
+# --- Функции для работы с БД ---
+def get_db_conn():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # --- API эндпоинты ---
-
-@app.get("/", include_in_schema=False)
-async def read_root():
-    """Отдает главный HTML файл приложения."""
-    return FileResponse('index.html')
-
-@app.get("/api/init/{user_id}", response_model=InitDataResponse)
-def get_initial_data(user_id: str, db: Session = Depends(get_db)):
-    """Получение начальных данных для пользователя: список его машин и активная машина."""
-    cars = db.query(Car).filter(Car.user_id == user_id).all()
-    if not cars:
-        return {"cars": [], "active_car_id": None}
+@app.get("/api/init/{user_id}", response_model=InitData)
+def get_initial_data(user_id: str):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM cars WHERE user_id = ?", (user_id,))
+    cars_data = cursor.fetchall()
     
-    # По умолчанию активной делаем первую машину
-    active_car_id = cars[0].id
+    cars = [dict(row) for row in cars_data]
+    
+    active_car = next((car for car in cars if car['is_active']), None)
+    active_car_id = active_car['id'] if active_car else None
+
+    # Если нет активного, но есть машины, делаем первую активной
+    if not active_car_id and cars:
+        active_car_id = cars[0]['id']
+        cursor.execute("UPDATE cars SET is_active = 1 WHERE id = ?", (active_car_id,))
+        conn.commit()
+
+    conn.close()
     return {"cars": cars, "active_car_id": active_car_id}
 
-@app.post("/api/cars", response_model=CarResponse)
-def create_car(car_data: CarCreate, db: Session = Depends(get_db)):
-    """Добавление нового автомобиля."""
-    db_car = Car(**car_data.model_dump())
-    db.add(db_car)
-    db.commit()
-    db.refresh(db_car)
-    return db_car
-
-@app.get("/api/cars/{user_id}", response_model=List[CarResponse])
-def get_user_cars(user_id: str, db: Session = Depends(get_db)):
-    """Получение списка автомобилей пользователя."""
-    return db.query(Car).filter(Car.user_id == user_id).all()
-
-@app.put("/api/cars/{car_id}", response_model=CarResponse)
-def update_car_settings(car_id: int, settings: CarUpdate, db: Session = Depends(get_db)):
-    """Обновление настроек автомобиля (включая начальный пробег/топливо)."""
-    db_car = db.query(Car).filter(Car.id == car_id).first()
-    if not db_car:
-        raise HTTPException(status_code=404, detail="Автомобиль не найден")
-
-    update_data = settings.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_car, key, value)
+@app.post("/api/cars", response_model=Car)
+def add_car(car: CarCreate):
+    conn = get_db_conn()
+    cursor = conn.cursor()
     
-    db.commit()
-    db.refresh(db_car)
-    return db_car
-
-
-@app.post("/api/logs", response_model=CalculationResult)
-def create_fuel_log(log_data: LogCreate, db: Session = Depends(get_db)):
-    """Создание записи о поездке и расчет остатка."""
-    car = db.query(Car).filter(Car.id == log_data.car_id).first()
-    if not car:
-        raise HTTPException(status_code=404, detail="Автомобиль не найден")
+    # Сделать все другие машины неактивными для этого пользователя
+    cursor.execute("UPDATE cars SET is_active = 0 WHERE user_id = ?", (car.user_id,))
     
-    # Логика расчета
-    distance = log_data.end_mileage - log_data.start_mileage
-    if distance < 0:
-        raise HTTPException(status_code=400, detail="Конечный пробег не может быть меньше начального")
-
-    consumption_on_trip = distance * (log_data.consumption_driving / 100)
-    consumption_on_idle = log_data.idle_hours * log_data.consumption_idle
-    total_consumption = consumption_on_trip + consumption_on_idle
-    
-    final_fuel = (log_data.start_fuel + log_data.refueled) - total_consumption
-    if final_fuel < 0:
-        final_fuel = 0 # Не может быть отрицательным
-    
-    # Создаем запись в логе
-    db_log = FuelLog(
-        car_id=log_data.car_id,
-        user_id=log_data.user_id,
-        date=log_data.date,
-        start_mileage=log_data.start_mileage,
-        end_mileage=log_data.end_mileage,
-        refueled=log_data.refueled,
-        idle_hours=log_data.idle_hours,
-        consumption_driving=log_data.consumption_driving,
-        consumption_idle=log_data.consumption_idle,
-        calculated_fuel_after=final_fuel
+    cursor.execute(
+        "INSERT INTO cars (user_id, name, plate, is_active) VALUES (?, ?, ?, 1)",
+        (car.user_id, car.name, car.plate)
     )
-    db.add(db_log)
+    new_car_id = cursor.lastrowid
+    conn.commit()
     
-    # Обновляем текущие данные автомобиля
-    car.current_mileage = log_data.end_mileage
-    car.current_fuel = final_fuel
-    
-    db.commit()
-    
-    return CalculationResult(new_mileage=car.current_mileage, new_fuel_level=car.current_fuel)
+    cursor.execute("SELECT * FROM cars WHERE id = ?", (new_car_id,))
+    new_car = dict(cursor.fetchone())
+    conn.close()
+    return new_car
 
+@app.put("/api/cars/{car_id}", response_model=CarUpdate)
+def update_car_settings(car_id: int, settings: CarUpdate):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE cars SET 
+            current_mileage = ?, 
+            current_fuel = ?, 
+            consumption_driving = ?, 
+            consumption_idle = ?
+        WHERE id = ?
+        """,
+        (settings.current_mileage, settings.current_fuel, settings.consumption_driving, settings.consumption_idle, car_id)
+    )
+    conn.commit()
+    conn.close()
+    return settings
 
+@app.put("/api/cars/activate/{car_id}/{user_id}")
+def set_active_car(car_id: int, user_id: str):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE cars SET is_active = 0 WHERE user_id = ?", (user_id,))
+    cursor.execute("UPDATE cars SET is_active = 1 WHERE id = ? AND user_id = ?", (car_id, user_id))
+    conn.commit()
+    conn.close()
+    return {"message": "Active car updated successfully"}
+
+# НОВЫЙ ЭНДПОИНТ для получения логов
+@app.get("/api/logs/{car_id}", response_model=List[LogEntryResponse])
+def get_car_logs(car_id: int):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT date, trip_distance, refueled, fuel_consumed_total, final_fuel_level FROM fuel_logs WHERE car_id = ? ORDER BY date DESC, id DESC LIMIT 5",
+        (car_id,)
+    )
+    logs = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return logs
+
+@app.post("/api/logs")
+def calculate_and_log_trip(log: LogCreate):
+    # Расчеты
+    trip_distance = log.end_mileage - log.start_mileage
+    fuel_consumed_driving = (trip_distance / 100) * log.consumption_driving
+    fuel_consumed_idle = log.idle_hours * log.consumption_idle
+    fuel_consumed_total = fuel_consumed_driving + fuel_consumed_idle
+    
+    fuel_after_trip = log.start_fuel - fuel_consumed_total
+    final_fuel_level = fuel_after_trip + log.refueled
+
+    if final_fuel_level < 0:
+        raise HTTPException(status_code=400, detail="Расчетный остаток топлива отрицательный. Проверьте данные.")
+
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    
+    # Запись лога
+    cursor.execute(
+        """
+        INSERT INTO fuel_logs (car_id, date, start_mileage, end_mileage, trip_distance, refueled, idle_hours, 
+                               fuel_consumed_driving, fuel_consumed_idle, fuel_consumed_total, fuel_after_trip, final_fuel_level)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (log.car_id, log.date, log.start_mileage, log.end_mileage, trip_distance, log.refueled, log.idle_hours,
+         fuel_consumed_driving, fuel_consumed_idle, fuel_consumed_total, fuel_after_trip, final_fuel_level)
+    )
+
+    # Обновление состояния автомобиля
+    cursor.execute(
+        "UPDATE cars SET current_mileage = ?, current_fuel = ? WHERE id = ?",
+        (log.end_mileage, final_fuel_level, log.car_id)
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Trip logged successfully", "new_mileage": log.end_mileage, "new_fuel_level": final_fuel_level}
+
+# ОБНОВЛЕННЫЙ ЭНДПОИНТ для отчетов
 @app.get("/api/report")
-def get_excel_report(car_id: int, month: str = Query(..., pattern=r"^\d{4}-\d{2}$"), db: Session = Depends(get_db)):
-    """Генерация и отдача Excel отчета за выбранный месяц."""
-    try:
-        year, month_num = map(int, month.split('-'))
-        start_date = datetime.date(year, month_num, 1)
-        end_date = (start_date + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Неверный формат месяца. Используйте YYYY-MM.")
-
-    logs = db.query(FuelLog).filter(
-        FuelLog.car_id == car_id,
-        FuelLog.date >= start_date,
-        FuelLog.date <= end_date
-    ).order_by(FuelLog.date).all()
+def generate_report(car_id: int, start_date: date, end_date: date):
+    conn = get_db_conn()
+    cursor = conn.cursor()
     
-    if not logs:
-        raise HTTPException(status_code=404, detail="Нет данных за указанный период")
-
+    cursor.execute("SELECT name, plate FROM cars WHERE id = ?", (car_id,))
+    car_info = cursor.fetchone()
+    if not car_info:
+        raise HTTPException(status_code=404, detail="Car not found")
+    
+    query = """
+    SELECT date, start_mileage, end_mileage, trip_distance, refueled, idle_hours, fuel_consumed_total, final_fuel_level
+    FROM fuel_logs 
+    WHERE car_id = ? AND date BETWEEN ? AND ?
+    ORDER BY date ASC
+    """
+    
+    cursor.execute(query, (car_id, start_date, end_date))
+    logs = cursor.fetchall()
+    conn.close()
+    
+    # Создание Excel файла
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"Отчет за {month}"
+    ws.title = "Отчет по топливу"
     
-    headers = [
-        "Дата", "Нач. пробег", "Кон. пробег", "Пробег за поездку", "Заправлено (л)", 
-        "Простой (ч)", "Расход (движ.)", "Расход (простой)", "Остаток (л)"
-    ]
+    # Заголовок
+    ws.merge_cells('A1:H1')
+    title_cell = ws['A1']
+    title_cell.value = f"Отчет по автомобилю {car_info['name']} ({car_info['plate']}) за период с {start_date.strftime('%d.%m.%Y')} по {end_date.strftime('%d.%m.%Y')}"
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal='center')
+    
+    # Заголовки столбцов
+    headers = ["Дата", "Пробег нач.", "Пробег кон.", "Пробег за поездку", "Заправлено, л", "Простой, ч", "Расход, л", "Остаток, л"]
     ws.append(headers)
-    
+    for cell in ws[2]:
+        cell.font = Font(bold=True)
+
+    # Данные
     for log in logs:
-        trip_distance = log.end_mileage - log.start_mileage
-        row = [
-            log.date.strftime("%Y-%m-%d"),
-            log.start_mileage,
-            log.end_mileage,
-            trip_distance,
-            log.refueled,
-            log.idle_hours,
-            log.consumption_driving,
-            log.consumption_idle,
-            log.calculated_fuel_after
-        ]
-        ws.append(row)
+        ws.append(list(log))
         
-    # Сохраняем файл в памяти
-    virtual_workbook = io.BytesIO()
+    # Сохраняем в памяти
+    from io import BytesIO
+    virtual_workbook = BytesIO()
     wb.save(virtual_workbook)
     virtual_workbook.seek(0)
     
-    return StreamingResponse(
-        virtual_workbook,
+    return Response(
+        content=virtual_workbook.read(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=report_{car_id}_{month}.xlsx"}
+        headers={"Content-Disposition": f"attachment; filename=report_{car_id}_{start_date}_to_{end_date}.xlsx"}
     )
 
-# Для запуска через `python main.py`
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- Статика для фронтенда ---
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
