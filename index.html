@@ -191,10 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
             addCarForm: document.getElementById('add-car-form'),
             alertModal: document.getElementById('alert-modal'),
             alertMessage: document.getElementById('alert-message'),
-            recentLogsCard: document.getElementById('recent-logs-card'),
-            recentLogsContainer: document.getElementById('recent-logs-container'),
-            reportStartDate: document.getElementById('report-start-date'),
-            reportEndDate: document.getElementById('report-end-date'),
             editCarModal: document.getElementById('edit-car-modal'),
             editCarForm: document.getElementById('edit-car-form'),
             editCarId: document.getElementById('edit-car-id'),
@@ -242,9 +238,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const updateUI = () => {
+            // ИСПРАВЛЕНИЕ: Логика для нового пользователя
             if (!state.activeCarId || state.cars.length === 0) {
-                showModal('cars'); DOMElements.mainScreen.classList.remove('hidden'); DOMElements.loader.classList.add('hidden'); return;
+                showModal('cars');
+                DOMElements.mainScreen.classList.remove('hidden');
+                DOMElements.loader.classList.add('hidden');
+                document.body.classList.add('ready'); // <-- ВАЖНОЕ ИСПРАВЛЕНИЕ
+                return;
             }
+
             const activeCar = state.cars.find(c => c.id === state.activeCarId);
             if (activeCar) {
                 DOMElements.currentCarName.textContent = activeCar.name;
@@ -264,7 +266,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId)));
                 
                 const selectBtn = carDiv.querySelector('.select-btn');
-                // ИСПРАВЛЕНИЕ: Проверяем, существует ли кнопка, прежде чем вешать обработчик
                 if (selectBtn) {
                     selectBtn.addEventListener('click', async (e) => {
                         try {
@@ -292,14 +293,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const handleDeleteCar = (carId) => {
-            const car = state.cars.find(c => c.id === carId);
+             const car = state.cars.find(c => c.id === carId);
             if (!car) return;
             tg.showConfirm(`Удалить "${car.name}" и всю историю?`, async (confirmed) => {
                 if (confirmed) {
                     try {
                         await apiRequest(`/cars/${carId}/${state.userId}`, 'DELETE');
                         customShowAlert(`Автомобиль "${car.name}" удален.`);
-                        await initApp(); // Полная перезагрузка данных
+                        await initApp(true);
                         hideModals();
                     } catch (error) { console.error('Ошибка удаления', error); }
                 }
@@ -317,42 +318,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 showModal('settings');
             }
         };
-
-        const setupEventListeners = () => {
-            // ... (все обработчики форм и кнопок)
-            document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
-            document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
-            document.getElementById('close-settings-btn').addEventListener('click', hideModals);
-            document.getElementById('close-cars-btn').addEventListener('click', hideModals);
-            document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
-            document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
-
-             DOMElements.editCarForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const carId = parseInt(DOMElements.editCarId.value);
-                const payload = { name: DOMElements.editCarName.value, plate: DOMElements.editCarPlate.value };
-                try {
-                    await apiRequest(`/cars/details/${carId}`, 'PUT', payload);
-                    const carIndex = state.cars.findIndex(c => c.id === carId);
-                    state.cars[carIndex].name = payload.name;
-                    state.cars[carIndex].plate = payload.plate;
-                    updateUI(); hideModals(); customShowAlert('Данные автомобиля обновлены.');
-                } catch (error) { console.error('Ошибка при редактировании авто', error); }
-            });
-
-             DOMElements.settingsForm.addEventListener('submit', async(e) => { /* ... */ });
-             DOMElements.addCarForm.addEventListener('submit', async(e) => { /* ... */ });
-             // ... и так далее для всех форм
-        };
-
-        const initApp = async () => {
-            const now = new Date();
-            DOMElements.tripDateInput.valueAsDate = now;
-            DOMElements.reportEndDate.valueAsDate = now;
-            DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            
-            setupEventListeners();
-            
+        
+        // Главная функция инициализации
+        const initApp = async (isReload = false) => {
+            if (!isReload) {
+                const now = new Date();
+                DOMElements.tripDateInput.valueAsDate = now;
+                const reportEndDate = document.getElementById('report-end-date');
+                const reportStartDate = document.getElementById('report-start-date');
+                reportEndDate.valueAsDate = now;
+                reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            }
             try {
                 const data = await apiRequest(`/init/${state.userId}`);
                 state.cars = data.cars; 
@@ -362,7 +338,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 DOMElements.loader.classList.add('hidden');
             }
         };
+        
+        // Настройка всех обработчиков событий один раз
+        document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
+        document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
+        document.getElementById('close-settings-btn').addEventListener('click', hideModals);
+        document.getElementById('close-cars-btn').addEventListener('click', hideModals);
+        document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
+        document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
 
+        DOMElements.editCarForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const carId = parseInt(DOMElements.editCarId.value);
+            const payload = { name: DOMElements.editCarName.value, plate: DOMElements.editCarPlate.value };
+            try {
+                await apiRequest(`/cars/details/${carId}`, 'PUT', payload);
+                const carIndex = state.cars.findIndex(c => c.id === carId);
+                state.cars[carIndex].name = payload.name;
+                state.cars[carIndex].plate = payload.plate;
+                updateUI(); hideModals(); customShowAlert('Данные автомобиля обновлены.');
+            } catch (error) { console.error('Ошибка при редактировании авто', error); }
+        });
+
+        DOMElements.addCarForm.addEventListener('submit', async(e) => {
+            e.preventDefault();
+            const payload = { user_id: state.userId, name: document.getElementById('car-name').value, plate: document.getElementById('car-plate').value };
+            if (!payload.name) return customShowAlert('Введите марку и модель.');
+            try {
+                const newCar = await apiRequest('/cars', 'POST', payload);
+                customShowAlert(`Автомобиль "${newCar.name}" добавлен.`);
+                await initApp(true);
+                openSettingsForCar(newCar.id);
+            } catch(error) { console.error('Ошибка добавления авто', error); }
+        });
+        
+        // Запуск приложения
         initApp();
 
     } catch (e) {
