@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-link-color: #2481cc;
+            --tg-theme-button-color: #2481cc;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #f4f4f5;
+        }
+        body {
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        .input-group label {
+            display: block;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--tg-theme-bg-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--tg-theme-link-color);
+        }
+        .btn {
+            width: 100%;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+        .btn-secondary {
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-button-color);
+            border: 1px solid var(--tg-theme-button-color);
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: var(--tg-theme-bg-color);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 400px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="text-center p-8">
+        <p class="text-lg animate-pulse">Загрузка данных...</p>
+    </div>
+
+    <!-- Основной экран -->
+    <div id="main-screen" class="hidden">
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-xl font-bold" id="current-car-name">Мое авто</h1>
+                    <p class="text-sm" id="current-car-plate"></p>
+                </div>
+                <button id="select-car-btn" class="text-sm text-blue-500">Сменить</button>
+            </div>
+            <div>
+                <p>Текущий пробег: <strong id="current-mileage">0</strong> км</p>
+                <p>Остаток в баке: <strong id="current-fuel">0</strong> л</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="text-lg font-bold mb-4">Расчет поездки</h2>
+            <form id="trip-form">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="input-group col-span-2">
+                        <label for="end-mileage">Конечный пробег (км)</label>
+                        <input type="number" id="end-mileage" class="input-field" placeholder="Напр. 150000" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="refueled">Заправлено (л)</label>
+                        <input type="number" step="0.01" id="refueled" class="input-field" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="idle-hours">Простой (часы)</label>
+                        <input type="number" step="0.1" id="idle-hours" class="input-field" value="0">
+                    </div>
+                     <div class="input-group col-span-2">
+                        <label for="trip-date">Дата</label>
+                        <input type="date" id="trip-date" class="input-field" required>
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-4">
+                    <button type="button" id="reset-btn" class="btn btn-secondary">Сброс</button>
+                    <button type="submit" class="btn btn-primary">Рассчитать</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="card">
+             <h2 class="text-lg font-bold mb-4">Отчет</h2>
+             <div class="input-group">
+                <label for="report-month">Выберите месяц для отчета</label>
+                <input type="month" id="report-month" class="input-field">
+            </div>
+            <button id="download-report-btn" class="btn btn-secondary mt-2">Скачать отчет (XLSX)</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Настройки -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4">Настройки авто</h2>
+            <form id="settings-form">
+                <input type="hidden" id="settings-car-id">
+                <div class="input-group">
+                    <label for="settings-start-mileage">Начальный пробег (км)</label>
+                    <input type="number" id="settings-start-mileage" class="input-field" required>
+                </div>
+                <div class="input-group">
+                    <label for="settings-initial-fuel">Начальный остаток (л)</label>
+                    <input type="number" step="0.01" id="settings-initial-fuel" class="input-field" required>
+                </div>
+                <div class="input-group">
+                    <label for="settings-consumption-driving">Расход в движении (л/100 км)</label>
+                    <input type="number" step="0.1" id="settings-consumption-driving" class="input-field" required>
+                </div>
+                <div class="input-group">
+                    <label for="settings-consumption-idle">Расход на простое (л/час)</label>
+                    <input type="number" step="0.1" id="settings-consumption-idle" class="input-field" required>
+                </div>
+                <div class="flex gap-4 mt-4">
+                    <button type="button" id="close-settings-btn" class="btn btn-secondary">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно: Выбор/Добавление авто -->
+    <div id="cars-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4">Мои автомобили</h2>
+            <div id="car-list" class="mb-4 space-y-2">
+                <!-- Список авто будет здесь -->
+            </div>
+            <hr class="my-4">
+            <h3 class="text-lg font-bold mb-2">Добавить новое авто</h3>
+            <form id="add-car-form">
+                 <div class="input-group">
+                    <label for="car-name">Марка и модель</label>
+                    <input type="text" id="car-name" class="input-field" placeholder="Напр. Toyota Camry" required>
+                </div>
+                 <div class="input-group">
+                    <label for="car-plate">Гос. номер</label>
+                    <input type="text" id="car-plate" class="input-field" placeholder="Напр. A123BC777">
+                </div>
+                <button type="submit" class="btn btn-primary">Добавить авто</button>
+                 <button type="button" id="close-cars-btn" class="btn btn-secondary mt-2">Закрыть</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модальное окно: Уведомление -->
+    <div id="alert-modal" class="modal-backdrop hidden">
+        <div class="modal-content text-center">
+            <p id="alert-message" class="mb-4 text-lg" style="white-space: pre-wrap;"></p>
+            <button id="close-alert-btn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const API_BASE_URL = ''; // Оставьте пустым для относительного пути к вашему API
+    const state = {
+        userId: tg.initDataUnsafe?.user?.id || 'test_user_123',
+        cars: [],
+        activeCarId: null,
+    };
+
+    // --- Элементы UI ---
+    const loader = document.getElementById('loader');
+    const mainScreen = document.getElementById('main-screen');
+    
+    const currentCarNameEl = document.getElementById('current-car-name');
+    const currentCarPlateEl = document.getElementById('current-car-plate');
+    const currentMileageEl = document.getElementById('current-mileage');
+    const currentFuelEl = document.getElementById('current-fuel');
+
+    const tripForm = document.getElementById('trip-form');
+    const endMileageInput = document.getElementById('end-mileage');
+    const refueledInput = document.getElementById('refueled');
+    const idleHoursInput = document.getElementById('idle-hours');
+    const tripDateInput = document.getElementById('trip-date');
+
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsForm = document.getElementById('settings-form');
+    const settingsCarIdInput = document.getElementById('settings-car-id');
+    const settingsStartMileageInput = document.getElementById('settings-start-mileage');
+    const settingsInitialFuelInput = document.getElementById('settings-initial-fuel');
+    const settingsConsumptionDrivingInput = document.getElementById('settings-consumption-driving');
+    const settingsConsumptionIdleInput = document.getElementById('settings-consumption-idle');
+    
+    const carsModal = document.getElementById('cars-modal');
+    const carListContainer = document.getElementById('car-list');
+    const addCarForm = document.getElementById('add-car-form');
+    
+    const alertModal = document.getElementById('alert-modal');
+    const alertMessage = document.getElementById('alert-message');
+    const closeAlertBtn = document.getElementById('close-alert-btn');
+
+    // --- Функции ---
+
+    const customShowAlert = (message) => {
+        alertMessage.textContent = message;
+        alertModal.classList.remove('hidden');
+    };
+    
+    const customHideAlert = () => {
+        alertModal.classList.add('hidden');
+    };
+    
+    const apiRequest = async (endpoint, method = 'GET', body = null) => {
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            const options = {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : null,
+            };
+            const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка сети');
+            }
+            if (response.headers.get("content-type")?.includes("application/json")) {
+                return response.json();
+            }
+            return response; // для файлов
+        } catch (error) {
+            customShowAlert(`Ошибка: ${error.message}`);
+            console.error(error);
+            throw error;
+        }
+    };
+
+    const updateUI = () => {
+        if (!state.activeCarId || state.cars.length === 0) {
+            showModal('cars');
+            currentCarNameEl.textContent = 'Нет авто';
+            currentCarPlateEl.textContent = 'Добавьте автомобиль';
+            currentMileageEl.textContent = '0';
+            currentFuelEl.textContent = '0';
+            mainScreen.classList.remove('hidden');
+            loader.classList.add('hidden');
+            return;
+        }
+
+        const activeCar = state.cars.find(c => c.id === state.activeCarId);
+        if (activeCar) {
+            currentCarNameEl.textContent = activeCar.name;
+            currentCarPlateEl.textContent = activeCar.plate || '';
+            currentMileageEl.textContent = activeCar.current_mileage.toFixed(0);
+            currentFuelEl.textContent = activeCar.current_fuel.toFixed(2);
+            endMileageInput.min = activeCar.current_mileage;
+            endMileageInput.placeholder = `Больше ${activeCar.current_mileage.toFixed(0)}`;
+        }
+        
+        // Заполняем список авто в модальном окне
+        carListContainer.innerHTML = '';
+        state.cars.forEach(car => {
+            const carDiv = document.createElement('div');
+            carDiv.className = 'flex justify-between items-center p-3 rounded-lg';
+            carDiv.className += car.id === state.activeCarId ? ' bg-blue-100' : ' bg-gray-100';
+            
+            carDiv.innerHTML = `
+                <div>
+                    <p class="font-bold">${car.name}</p>
+                    <p class="text-sm text-gray-500">${car.plate || ''}</p>
+                </div>
+                <div>
+                    <button data-car-id="${car.id}" class="settings-btn text-sm text-blue-500 mr-2">⚙️</button>
+                    ${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}
+                </div>
+            `;
+            carListContainer.appendChild(carDiv);
+        });
+        
+        mainScreen.classList.remove('hidden');
+        loader.classList.add('hidden');
+    };
+    
+    const showModal = (modalName) => {
+        if (modalName === 'settings') settingsModal.classList.remove('hidden');
+        if (modalName === 'cars') carsModal.classList.remove('hidden');
+    };
+
+    const hideModals = () => {
+        settingsModal.classList.add('hidden');
+        carsModal.classList.add('hidden');
+    };
+
+    const loadInitialData = async () => {
+        try {
+            const data = await apiRequest(`/init/${state.userId}`);
+            state.cars = data.cars;
+            state.activeCarId = data.active_car_id;
+            localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
+            updateUI();
+        } catch (error) {
+            console.error('Не удалось загрузить начальные данные', error);
+            loader.classList.add('hidden');
+            showModal('cars'); // Показать окно добавления авто, если данных нет
+        }
+    };
+
+    const handleTripCalculation = async (e) => {
+        e.preventDefault();
+        const activeCar = state.cars.find(c => c.id === state.activeCarId);
+        if (!activeCar) {
+            customShowAlert('Сначала выберите автомобиль.');
+            return;
+        }
+
+        const payload = {
+            car_id: state.activeCarId,
+            user_id: state.userId,
+            end_mileage: parseFloat(endMileageInput.value),
+            refueled: parseFloat(refueledInput.value) || 0,
+            idle_hours: parseFloat(idleHoursInput.value) || 0,
+            date: tripDateInput.value,
+            start_mileage: activeCar.current_mileage,
+            start_fuel: activeCar.current_fuel,
+            consumption_driving: activeCar.consumption_driving,
+            consumption_idle: activeCar.consumption_idle,
+        };
+
+        if (payload.end_mileage < payload.start_mileage) {
+            customShowAlert('Конечный пробег не может быть меньше начального.');
+            return;
+        }
+        
+        tg.showConfirm(`Рассчитать поездку?`, async (confirmed) => {
+            if(confirmed) {
+                try {
+                    const result = await apiRequest('/logs', 'POST', payload);
+                    
+                    // Обновляем данные авто в состоянии
+                    const carIndex = state.cars.findIndex(c => c.id === state.activeCarId);
+                    state.cars[carIndex].current_mileage = result.new_mileage;
+                    state.cars[carIndex].current_fuel = result.new_fuel_level;
+
+                    customShowAlert(`Расчет завершен!\nНовый остаток: ${result.new_fuel_level.toFixed(2)} л.`);
+                    tripForm.reset();
+                    tripDateInput.valueAsDate = new Date(); // Сброс даты
+                    updateUI();
+                } catch(e) {
+                    console.error("Ошибка при расчете поездки", e);
+                }
+            }
+        });
+    };
+
+    const handleSettingsSave = async (e) => {
+        e.preventDefault();
+        const carId = parseInt(settingsCarIdInput.value, 10);
+        const payload = {
+            current_mileage: parseFloat(settingsStartMileageInput.value),
+            current_fuel: parseFloat(settingsInitialFuelInput.value),
+            consumption_driving: parseFloat(settingsConsumptionDrivingInput.value),
+            consumption_idle: parseFloat(settingsConsumptionIdleInput.value),
+        };
+        try {
+            const updatedCar = await apiRequest(`/cars/${carId}`, 'PUT', payload);
+            const carIndex = state.cars.findIndex(c => c.id === carId);
+            state.cars[carIndex] = { ...state.cars[carIndex], ...updatedCar };
+            updateUI();
+            hideModals();
+            customShowAlert('Настройки сохранены.');
+        } catch (error) {
+            console.error('Ошибка сохранения настроек', error);
+        }
+    };
+    
+    const handleAddCar = async (e) => {
+        e.preventDefault();
+        const payload = {
+            user_id: state.userId,
+            name: document.getElementById('car-name').value,
+            plate: document.getElementById('car-plate').value,
+        };
+
+        if (!payload.name) {
+            customShowAlert('Введите марку и модель.');
+            return;
+        }
+        
+        try {
+            const newCar = await apiRequest('/cars', 'POST', payload);
+            state.cars.push(newCar);
+            if (!state.activeCarId) {
+                state.activeCarId = newCar.id;
+                localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
+            }
+            updateUI();
+            addCarForm.reset();
+            customShowAlert(`Автомобиль "${newCar.name}" добавлен. Теперь заполните его начальные данные в настройках (⚙️).`);
+            openSettingsForCar(newCar.id);
+        } catch(error) {
+             console.error('Ошибка добавления авто', error);
+        }
+    };
+
+    const openSettingsForCar = (carId) => {
+        const car = state.cars.find(c => c.id === carId);
+        if (car) {
+            settingsCarIdInput.value = car.id;
+            settingsStartMileageInput.value = car.current_mileage || 0;
+            settingsInitialFuelInput.value = car.current_fuel || 0;
+            settingsConsumptionDrivingInput.value = car.consumption_driving || 8.0;
+            settingsConsumptionIdleInput.value = car.consumption_idle || 1.0;
+            showModal('settings');
+        }
+    };
+    
+    const handleCarListClick = (e) => {
+        const carId = parseInt(e.target.dataset.carId, 10);
+        if (!carId) return;
+
+        if (e.target.classList.contains('settings-btn')) {
+            openSettingsForCar(carId);
+        } else if (e.target.classList.contains('select-btn')) {
+            state.activeCarId = carId;
+            localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
+            updateUI();
+            hideModals();
+        }
+    };
+
+    const handleReportDownload = async () => {
+        const month = document.getElementById('report-month').value;
+        if (!month) {
+            customShowAlert('Пожалуйста, выберите месяц для отчета.');
+            return;
+        }
+        if (!state.activeCarId) {
+            customShowAlert('Пожалуйста, выберите автомобиль.');
+            return;
+        }
+        
+        try {
+            const response = await apiRequest(`/report?car_id=${state.activeCarId}&month=${month}`, 'GET');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            const car = state.cars.find(c => c.id === state.activeCarId);
+            a.download = `report_${car.name.replace(' ', '_')}_${month}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        } catch (error) {
+            console.error('Ошибка скачивания отчета', error);
+        }
+    };
+
+
+    // --- Инициализация и слушатели событий ---
+    tripForm.addEventListener('submit', handleTripCalculation);
+    settingsForm.addEventListener('submit', handleSettingsSave);
+    addCarForm.addEventListener('submit', handleAddCar);
+    carListContainer.addEventListener('click', handleCarListClick);
+    
+    document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        tripForm.reset();
+        tripDateInput.valueAsDate = new Date();
+    });
+    
+    document.getElementById('close-settings-btn').addEventListener('click', hideModals);
+    document.getElementById('close-cars-btn').addEventListener('click', hideModals);
+    document.getElementById('download-report-btn').addEventListener('click', handleReportDownload);
+    closeAlertBtn.addEventListener('click', customHideAlert);
+
+    // Установить сегодняшнюю дату по умолчанию
+    tripDateInput.valueAsDate = new Date();
+    // Установить текущий месяц для отчета
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    document.getElementById('report-month').value = `${year}-${month}`;
+
+    loadInitialData();
+});
+</script>
+
+</body>
+</html>
+
