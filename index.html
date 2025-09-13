@@ -355,6 +355,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             carListContainer.appendChild(carDiv);
+
+            // ИСПРАВЛЕНИЕ: Добавляем прямые обработчики событий на каждую кнопку
+            const settingsBtn = carDiv.querySelector('.settings-btn');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', (e) => {
+                    const carId = parseInt(e.currentTarget.dataset.carId, 10);
+                    openSettingsForCar(carId);
+                });
+            }
+
+            const selectBtn = carDiv.querySelector('.select-btn');
+            if (selectBtn) {
+                selectBtn.addEventListener('click', (e) => {
+                    const carId = parseInt(e.currentTarget.dataset.carId, 10);
+                    state.activeCarId = carId;
+                    localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
+                    updateUI();
+                    hideModals();
+                });
+            }
         });
         
         mainScreen.classList.remove('hidden');
@@ -498,26 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // ИСПРАВЛЕНИЕ: эта функция теперь правильно определяет нажатие на кнопку
-    const handleCarListClick = (e) => {
-        // Находим ближайший родительский элемент <button>
-        const button = e.target.closest('button');
-        // Если клик был не по кнопке, выходим
-        if (!button) return;
-
-        const carId = parseInt(button.dataset.carId, 10);
-        if (!carId) return;
-
-        if (button.classList.contains('settings-btn')) {
-            openSettingsForCar(carId);
-        } else if (button.classList.contains('select-btn')) {
-            state.activeCarId = carId;
-            localStorage.setItem(`activeCarId_${state.userId}`, state.activeCarId);
-            updateUI();
-            hideModals();
-        }
-    };
-
     const handleReportDownload = async () => {
         const month = document.getElementById('report-month').value;
         if (!month) {
@@ -552,7 +552,9 @@ document.addEventListener('DOMContentLoaded', () => {
     tripForm.addEventListener('submit', handleTripCalculation);
     settingsForm.addEventListener('submit', handleSettingsSave);
     addCarForm.addEventListener('submit', handleAddCar);
-    carListContainer.addEventListener('click', handleCarListClick);
+    
+    // Удаляем старый общий обработчик
+    // carListContainer.addEventListener('click', handleCarListClick); 
     
     document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
     document.getElementById('reset-btn').addEventListener('click', () => {
