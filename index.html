@@ -229,7 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const API_BASE_URL = ''; // Оставьте пустым для относительного пути к вашему API
     const state = {
-        userId: tg.initDataUnsafe?.user?.id || 'test_user_123',
+        // ИСПРАВЛЕНИЕ: Преобразуем ID пользователя в строку сразу при инициализации
+        userId: String(tg.initDataUnsafe?.user?.id || 'test_user_123'),
         cars: [],
         activeCarId: null,
     };
@@ -291,12 +292,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const errorData = await response.json();
                     if (errorData && errorData.detail) {
-                        // FastAPI validation error returns an array of objects
                         if (Array.isArray(errorData.detail)) {
                            const firstError = errorData.detail[0];
-                           errorMessage = `Неверные данные: ${firstError.msg} в поле '${firstError.loc.slice(-1)}'`;
+                           // Сообщение теперь более читаемое
+                           errorMessage = `Неверные данные: ${firstError.msg}`;
                         } 
-                        // Standard string detail from HTTPException
                         else if (typeof errorData.detail === 'string') {
                             errorMessage = errorData.detail;
                         }
@@ -312,11 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return response;
         } catch (error) {
-            // This catch block receives a well-formed Error object
-            // from either the 'throw' above or from a network failure (`fetch` itself).
             customShowAlert(`Ошибка: ${error.message}`);
             console.error("API Request Failed:", error);
-            throw error; // Re-throw so the calling function's catch block can execute
+            throw error;
         }
     };
 
@@ -537,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const car = state.cars.find(c => c.id === state.activeCarId);
             a.download = `report_${car.name.replace(' ', '_')}_${month}.xlsx`;
             document.body.appendChild(a);
-            a.click();
+a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
         } catch (error) {
@@ -577,6 +575,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
-
 
