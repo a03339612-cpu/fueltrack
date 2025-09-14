@@ -304,14 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         await apiRequest(`/cars/${carId}/${state.userId}`, 'DELETE');
                         customShowAlert(`Автомобиль "${car.name}" удален.`);
-                        
-                        // ИСПРАВЛЕНИЕ: Обновляем состояние локально
-                        state.cars = state.cars.filter(c => c.id !== carId);
-                        if (state.activeCarId === carId) {
-                            state.activeCarId = state.cars.length > 0 ? state.cars[0].id : null;
-                        }
-
-                        updateUI();
+                        await initApp(true);
                         hideModals();
                     } catch (error) { console.error('Ошибка удаления', error); }
                 }
@@ -330,12 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        const initApp = async () => {
-            const now = new Date();
-            DOMElements.tripDateInput.valueAsDate = now;
-            DOMElements.reportEndDate.valueAsDate = now;
-            DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            
+        const initApp = async (isReload = false) => {
+            if (!isReload) {
+                const now = new Date();
+                DOMElements.tripDateInput.valueAsDate = now;
+                DOMElements.reportEndDate.valueAsDate = now;
+                DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            }
             try {
                 const data = await apiRequest(`/init/${state.userId}`);
                 state.cars = data.cars; 
@@ -350,7 +344,44 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
         
-        // Сохранение настроек
+        document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
+        document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
+        document.getElementById('close-settings-btn').addEventListener('click', hideModals);
+        document.getElementById('close-cars-btn').addEventListener('click', hideModals);
+        document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
+        document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
+
+        DOMElements.tripForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const activeCar = state.cars.find(c => c.id === state.activeCarId);
+            if (!activeCar) return customShowAlert('Сначала выберите автомобиль.');
+            const payload = {
+                car_id: state.activeCarId, user_id: state.userId,
+                end_mileage: parseFloat(DOMElements.endMileageInput.value),
+                refueled: parseFloat(DOMElements.refueledInput.value) || 0,
+                idle_hours: parseFloat(DOMElements.idleHoursInput.value) || 0,
+                date: DOMElements.tripDateInput.value, start_mileage: activeCar.current_mileage,
+                start_fuel: activeCar.current_fuel, consumption_driving: activeCar.consumption_driving,
+                consumption_idle: activeCar.consumption_idle,
+            };
+            if (!payload.end_mileage || !payload.date) return customShowAlert('Заполните конечный пробег и дату.');
+            if (payload.end_mileage < payload.start_mileage) return customShowAlert('Конечный пробег не может быть меньше начального.');
+            tg.showConfirm(`Рассчитать поездку?`, async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        const result = await apiRequest('/logs', 'POST', payload);
+                        const carIndex = state.cars.findIndex(c => c.id === state.activeCarId);
+                        state.cars[carIndex].current_mileage = result.new_mileage;
+                        state.cars[carIndex].current_fuel = result.new_fuel_level;
+                        customShowAlert(`Расчет завершен!\nНовый остаток: ${result.new_fuel_level.toFixed(2)} л.`);
+                        DOMElements.tripForm.reset();
+                        DOMElements.tripDateInput.valueAsDate = new Date();
+                        updateUI();
+                    } catch (e) { console.error("Ошибка при расчете поездки", e); }
+                }
+            });
+        });
+
         DOMElements.settingsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const carId = parseInt(DOMElements.settingsCarId.value);
@@ -364,17 +395,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updatedCarData = await apiRequest(`/cars/settings/${carId}`, 'PUT', payload);
                 const carIndex = state.cars.findIndex(c => c.id === carId);
                 if (carIndex !== -1) {
-                    state.cars[carIndex] = { ...state.cars[carIndex], ...updatedCarData };
+                    Object.assign(state.cars[carIndex], updatedCarData);
                 }
-                updateUI();
-                hideModals();
-                customShowAlert('Настройки сохранены.');
-            } catch (error) {
-                console.error('Ошибка сохранения настроек', error);
-            }
+                updateUI(); hideModals(); customShowAlert('Настройки сохранены.');
+            } catch (error) { console.error('Ошибка сохранения настроек', error); }
         });
-        
-        // Редактирование авто
+
         DOMElements.editCarForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const carId = parseInt(DOMElements.editCarId.value);
@@ -382,37 +408,44 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await apiRequest(`/cars/details/${carId}`, 'PUT', payload);
                 const carIndex = state.cars.findIndex(c => c.id === carId);
-                state.cars[carIndex].name = payload.name;
-                state.cars[carIndex].plate = payload.plate;
-                updateUI();
-                hideModals();
-                customShowAlert('Данные автомобиля обновлены.');
+                state.cars[carIndex].name = payload.name; state.cars[carIndex].plate = payload.plate;
+                updateUI(); hideModals(); customShowAlert('Данные автомобиля обновлены.');
             } catch (error) { console.error('Ошибка при редактировании авто', error); }
         });
 
-        // Добавление авто
         DOMElements.addCarForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = { user_id: state.userId, name: document.getElementById('car-name').value, plate: document.getElementById('car-plate').value };
             if (!payload.name) return customShowAlert('Введите марку и модель.');
             try {
-                const newCar = await apiRequest('/cars', 'POST', payload);
-                state.cars.push(newCar);
-                state.activeCarId = newCar.id;
-                updateUI();
-                hideModals();
-                openSettingsForCar(newCar.id);
+                await apiRequest('/cars', 'POST', payload);
+                await initApp(true);
+                customShowAlert(`Автомобиль "${payload.name}" добавлен. Теперь заполните его начальные данные.`);
+                openSettingsForCar(state.activeCarId);
             } catch(error) { console.error('Ошибка добавления авто', error); }
         });
-
-        // Остальные кнопки
-        document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
-        document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
-        document.getElementById('close-settings-btn').addEventListener('click', hideModals);
-        document.getElementById('close-cars-btn').addEventListener('click', hideModals);
-        document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
-        document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
-
+        
+        document.getElementById('download-report-btn').addEventListener('click', async () => {
+            const startDate = DOMElements.reportStartDate.value;
+            const endDate = DOMElements.reportEndDate.value;
+            if (!startDate || !endDate) return customShowAlert('Выберите начальную и конечную дату для отчета.');
+            if (!state.activeCarId) return customShowAlert('Выберите автомобиль.');
+            try {
+                const response = await apiRequest(`/report?car_id=${state.activeCarId}&start_date=${startDate}&end_date=${endDate}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                const car = state.cars.find(c => c.id === state.activeCarId);
+                a.download = `report_${car.name.replace(/\s+/g, '_')}_${startDate}_${endDate}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) { console.error('Ошибка скачивания отчета', error); }
+        });
+        
         // Запуск
         initApp();
 
