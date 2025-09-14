@@ -243,50 +243,81 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        const renderRecentLogs = (logs) => {
+            if (!logs || logs.length === 0) {
+                DOMElements.recentLogsCard.classList.add('hidden');
+                return;
+            }
+            DOMElements.recentLogsContainer.innerHTML = '';
+            const header = document.createElement('div');
+            header.className = 'table-like pb-2 mb-2 border-b border-gray-300';
+            header.innerHTML = `<div class="font-semibold text-gray-500 text-xs">ДАТА</div><div class="font-semibold text-gray-500 text-xs text-right">ПРОБЕГ</div><div class="font-semibold text-gray-500 text-xs text-right">РАСХОД</div><div class="font-semibold text-gray-500 text-xs text-right">ОСТАТОК</div>`;
+            DOMElements.recentLogsContainer.appendChild(header);
+            logs.forEach(log => {
+                const logDiv = document.createElement('div');
+                logDiv.className = 'table-like pt-2';
+                const tripDist = log.trip_distance > 0 ? `+${log.trip_distance.toFixed(0)}` : '0';
+                logDiv.innerHTML = `<div>${new Date(log.date).toLocaleDateString('ru-RU')}</div><div class="text-right">${tripDist} км</div><div class="text-right text-red-500">-${log.fuel_consumed_total.toFixed(1)} л</div><div class="text-right font-semibold">${log.final_fuel_level.toFixed(1)} л</div>${log.refueled > 0 ? `<div class="col-span-4 text-right text-green-600 text-xs pt-1">+${log.refueled.toFixed(1)} л заправка</div>` : ''}`;
+                DOMElements.recentLogsContainer.appendChild(logDiv);
+            });
+            DOMElements.recentLogsCard.classList.remove('hidden');
+        };
+
+        const loadRecentLogs = async (carId) => {
+            try {
+                if (carId) {
+                    const logs = await apiRequest(`/logs/${carId}`);
+                    renderRecentLogs(logs);
+                } else {
+                     DOMElements.recentLogsCard.classList.add('hidden');
+                }
+            } catch(e) { console.error("Failed to load logs", e); }
+        };
+
         const updateUI = () => {
+            DOMElements.carList.innerHTML = '';
+            
             if (!state.activeCarId || state.cars.length === 0) {
                 DOMElements.currentCarName.textContent = 'Нет авто';
                 DOMElements.currentCarPlate.textContent = 'Добавьте автомобиль';
                 DOMElements.currentMileage.textContent = '0';
                 DOMElements.currentFuel.textContent = '0';
                 DOMElements.recentLogsCard.classList.add('hidden');
+                DOMElements.addCarForm.reset();
                 showModal('cars');
-                DOMElements.mainScreen.classList.remove('hidden');
-                DOMElements.loader.classList.add('hidden');
-                document.body.classList.add('ready');
-                return;
-            }
-
-            const activeCar = state.cars.find(c => c.id === state.activeCarId);
-            if (activeCar) {
-                DOMElements.currentCarName.textContent = activeCar.name;
-                DOMElements.currentCarPlate.textContent = activeCar.plate || '';
-                DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
-                DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
-                DOMElements.endMileageInput.min = activeCar.current_mileage;
-            }
-            DOMElements.carList.innerHTML = '';
-            state.cars.forEach(car => {
-                const carDiv = document.createElement('div');
-                carDiv.className = `flex justify-between items-center p-3 rounded-lg ${car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100'}`;
-                carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div class="flex items-center space-x-3"><button data-car-id="${car.id}" class="edit-btn text-xl">✏️</button><button data-car-id="${car.id}" class="delete-btn text-xl">🗑️</button>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}</div>`;
-                DOMElements.carList.appendChild(carDiv);
-                
-                carDiv.querySelector('.edit-btn').addEventListener('click', (e) => openEditCarModal(parseInt(e.currentTarget.dataset.carId)));
-                carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId)));
-                
-                const selectBtn = carDiv.querySelector('.select-btn');
-                if (selectBtn) {
-                    selectBtn.addEventListener('click', async (e) => {
-                        try {
-                            const carId = parseInt(e.currentTarget.dataset.carId);
-                            await apiRequest(`/cars/activate/${carId}/${state.userId}`, 'PUT');
-                            state.activeCarId = carId;
-                            updateUI(); hideModals();
-                        } catch (err) { console.error("Failed to activate car", err); }
-                    });
+            } else {
+                 const activeCar = state.cars.find(c => c.id === state.activeCarId);
+                if (activeCar) {
+                    DOMElements.currentCarName.textContent = activeCar.name;
+                    DOMElements.currentCarPlate.textContent = activeCar.plate || '';
+                    DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
+                    DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
+                    DOMElements.endMileageInput.min = activeCar.current_mileage;
+                    loadRecentLogs(activeCar.id);
                 }
-            });
+                state.cars.forEach(car => {
+                    const carDiv = document.createElement('div');
+                    carDiv.className = `flex justify-between items-center p-3 rounded-lg ${car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100'}`;
+                    carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div class="flex items-center space-x-3"><button data-car-id="${car.id}" class="edit-btn text-xl">✏️</button><button data-car-id="${car.id}" class="delete-btn text-xl">🗑️</button>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}</div>`;
+                    DOMElements.carList.appendChild(carDiv);
+                    
+                    carDiv.querySelector('.edit-btn').addEventListener('click', (e) => openEditCarModal(parseInt(e.currentTarget.dataset.carId)));
+                    carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId)));
+                    
+                    const selectBtn = carDiv.querySelector('.select-btn');
+                    if (selectBtn) {
+                        selectBtn.addEventListener('click', async (e) => {
+                            try {
+                                const carId = parseInt(e.currentTarget.dataset.carId);
+                                await apiRequest(`/cars/activate/${carId}/${state.userId}`, 'PUT');
+                                state.activeCarId = carId;
+                                updateUI(); hideModals();
+                            } catch (err) { console.error("Failed to activate car", err); }
+                        });
+                    }
+                });
+            }
+            
             DOMElements.mainScreen.classList.remove('hidden');
             DOMElements.loader.classList.add('hidden');
             document.body.classList.add('ready');
@@ -311,7 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         await apiRequest(`/cars/${carId}/${state.userId}`, 'DELETE');
                         customShowAlert(`Автомобиль "${car.name}" удален.`);
                         
-                        // ИСПРАВЛЕНИЕ: Логика обновления состояния
                         const carIndex = state.cars.findIndex(c => c.id === carId);
                         if (carIndex > -1) {
                             state.cars.splice(carIndex, 1);
@@ -322,7 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         updateUI();
-                        hideModals();
+                        if (state.cars.length > 0) {
+                             hideModals();
+                        }
                     } catch (error) { console.error('Ошибка удаления', error); }
                 }
             });
@@ -428,10 +460,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = { user_id: state.userId, name: document.getElementById('car-name').value, plate: document.getElementById('car-plate').value };
             if (!payload.name) return customShowAlert('Введите марку и модель.');
             try {
-                await apiRequest('/cars', 'POST', payload);
+                const newCar = await apiRequest('/cars', 'POST', payload);
                 await initApp(true);
-                customShowAlert(`Автомобиль "${payload.name}" добавлен. Теперь заполните его начальные данные.`);
-                openSettingsForCar(state.activeCarId);
+                customShowAlert(`Автомобиль "${newCar.name}" добавлен. Теперь заполните его начальные данные.`);
+                openSettingsForCar(newCar.id);
             } catch(error) { console.error('Ошибка добавления авто', error); }
         });
         
@@ -476,4 +508,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+
+</body>
+</html>
+
 
