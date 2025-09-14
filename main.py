@@ -3,7 +3,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import date
 import openpyxl
@@ -17,25 +17,18 @@ app = FastAPI()
 
 # --- ФУНКЦИИ БАЗЫ ДАННЫХ ---
 def get_db_conn():
-    """ Устанавливает соединение с базой данных. """
     if not DATABASE_URL:
-        raise RuntimeError("Критическая ошибка: переменная DATABASE_URL не установлена на сервере!")
-    
+        raise HTTPException(status_code=500, detail="DATABASE_URL не настроен на сервере!")
     conn_str = DATABASE_URL
     if 'sslmode' not in conn_str:
         conn_str = f"{conn_str}?sslmode=require"
-        
     try:
-        print("Попытка подключения к базе данных...")
         conn = psycopg2.connect(conn_str)
-        print("Подключение к базе данных успешно!")
         return conn
     except psycopg2.OperationalError as e:
-        # Эта ошибка будет видна в логах Render, если URL неправильный
-        raise RuntimeError(f"Критическая ошибка: не удалось подключиться к базе данных. Проверьте правильность DATABASE_URL. Детали: {e}")
+        raise RuntimeError(f"Критическая ошибка: не удалось подключиться к базе данных. Проверьте DATABASE_URL. Детали: {e}")
 
 def init_db():
-    """ Создает таблицы в базе, если их еще нет. """
     print("Проверка и инициализация таблиц базы данных...")
     try:
         conn = get_db_conn()
@@ -68,7 +61,7 @@ def init_db():
 async def startup_event():
     init_db()
 
-# --- Модели данных и эндпоинты (без изменений) ---
+# --- Модели данных (Pydantic) ---
 class CarBase(BaseModel): name: str; plate: Optional[str] = None
 class CarCreate(CarBase): user_id: str
 class CarDetailsUpdate(CarBase): pass
@@ -78,6 +71,7 @@ class LogCreate(BaseModel): car_id: int; user_id: str; date: date; start_mileage
 class LogEntryResponse(BaseModel): date: date; trip_distance: float; refueled: float; fuel_consumed_total: float; final_fuel_level: float
 class InitData(BaseModel): cars: List[Car]; active_car_id: Optional[int]
 
+# --- API эндпоинты (ПОЛНАЯ ВЕРСИЯ) ---
 @app.get("/api/init/{user_id}", response_model=InitData)
 def get_initial_data(user_id: str):
     conn = get_db_conn()
@@ -92,9 +86,107 @@ def get_initial_data(user_id: str):
             conn.commit()
     conn.close()
     return {"cars": cars, "active_car_id": active_car_id}
-# ... (остальные эндпоинты, скопируйте из предыдущих версий, они не менялись)
-# ...
+
+@app.post("/api/cars", response_model=Car)
+def add_car(car: CarCreate):
+    conn = get_db_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("UPDATE cars SET is_active = false WHERE user_id = %s", (car.user_id,))
+        cursor.execute(
+            "INSERT INTO cars (user_id, name, plate, is_active) VALUES (%s, %s, %s, true) RETURNING *",
+            (car.user_id, car.name, car.plate)
+        )
+        new_car = cursor.fetchone()
+        conn.commit()
+    conn.close()
+    return new_car
+
+@app.put("/api/cars/details/{car_id}", response_model=CarDetailsUpdate)
+def update_car_details(car_id: int, details: CarDetailsUpdate):
+    conn = get_db_conn()
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE cars SET name = %s, plate = %s WHERE id = %s", (details.name, details.plate, car_id))
+        conn.commit()
+    conn.close()
+    return details
+    
+@app.put("/api/cars/settings/{car_id}", response_model=CarUpdate)
+def update_car_settings(car_id: int, settings: CarUpdate):
+    conn = get_db_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("UPDATE cars SET current_mileage = %s, current_fuel = %s, consumption_driving = %s, consumption_idle = %s WHERE id = %s", (settings.current_mileage, settings.current_fuel, settings.consumption_driving, settings.consumption_idle, car_id))
+        conn.commit()
+    conn.close()
+    return settings
+
+@app.put("/api/cars/activate/{car_id}/{user_id}")
+def set_active_car(car_id: int, user_id: str):
+    conn = get_db_conn()
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE cars SET is_active = false WHERE user_id = %s", (user_id,))
+        cursor.execute("UPDATE cars SET is_active = true WHERE id = %s AND user_id = %s", (car_id, user_id))
+        conn.commit()
+    conn.close()
+    return {"message": "Active car updated"}
+
+@app.delete("/api/cars/{car_id}/{user_id}")
+def delete_car(car_id: int, user_id: str):
+    conn = get_db_conn()
+    with conn.cursor() as cursor:
+        cursor.execute("DELETE FROM cars WHERE id = %s AND user_id = %s", (car_id, user_id))
+        conn.commit()
+        cursor.execute("SELECT id FROM cars WHERE user_id = %s LIMIT 1", (user_id,))
+        remaining_car = cursor.fetchone()
+        if remaining_car:
+            cursor.execute("UPDATE cars SET is_active = true WHERE id = %s", (remaining_car[0],))
+            conn.commit()
+    conn.close()
+    return {"message": "Car deleted successfully"}
+
+@app.get("/api/logs/{car_id}", response_model=List[LogEntryResponse])
+def get_car_logs(car_id: int):
+    conn = get_db_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("SELECT date, trip_distance, refueled, fuel_consumed_total, final_fuel_level FROM fuel_logs WHERE car_id = %s ORDER BY date DESC, id DESC LIMIT 5", (car_id,))
+        logs = cursor.fetchall()
+    conn.close()
+    return logs
+
+@app.post("/api/logs")
+def calculate_and_log_trip(log: LogCreate):
+    trip_distance = log.end_mileage - log.start_mileage; fuel_consumed_driving = (trip_distance / 100) * log.consumption_driving; fuel_consumed_idle = log.idle_hours * log.consumption_idle; fuel_consumed_total = fuel_consumed_driving + fuel_consumed_idle; fuel_after_trip = log.start_fuel - fuel_consumed_total; final_fuel_level = fuel_after_trip + log.refueled
+    if final_fuel_level < 0: raise HTTPException(status_code=400, detail="Расчетный остаток топлива отрицательный.")
+    conn = get_db_conn()
+    with conn.cursor() as cursor:
+        cursor.execute("INSERT INTO fuel_logs (car_id, date, start_mileage, end_mileage, trip_distance, refueled, idle_hours, fuel_consumed_driving, fuel_consumed_idle, fuel_consumed_total, fuel_after_trip, final_fuel_level) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (log.car_id, log.date, log.start_mileage, log.end_mileage, trip_distance, log.refueled, log.idle_hours, fuel_consumed_driving, fuel_consumed_idle, fuel_consumed_total, fuel_after_trip, final_fuel_level));
+        cursor.execute("UPDATE cars SET current_mileage = %s, current_fuel = %s WHERE id = %s", (log.end_mileage, final_fuel_level, log.car_id));
+        conn.commit()
+    conn.close(); return {"new_mileage": log.end_mileage, "new_fuel_level": final_fuel_level}
+
+@app.get("/api/report")
+def generate_report(car_id: int, start_date: date, end_date: date):
+    conn = get_db_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("SELECT name, plate FROM cars WHERE id = %s", (car_id,)); car_info = cursor.fetchone()
+        if not car_info: raise HTTPException(status_code=404, detail="Car not found")
+        query = "SELECT date, start_mileage, end_mileage, trip_distance, refueled, idle_hours, fuel_consumed_total, final_fuel_level FROM fuel_logs WHERE car_id = %s AND date BETWEEN %s AND %s ORDER BY date ASC"; cursor.execute(query, (car_id, start_date, end_date)); logs = cursor.fetchall()
+    conn.close()
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Отчет по топливу"; ws.merge_cells('A1:H1'); title_cell = ws['A1']; title_cell.value = f"Отчет по автомобилю {car_info['name']} ({car_info['plate']}) за период с {start_date.strftime('%d.%m.%Y')} по {end_date.strftime('%d.%m.%Y')}"; title_cell.font = Font(bold=True, size=14); title_cell.alignment = Alignment(horizontal='center'); headers = ["Дата", "Пробег нач.", "Пробег кон.", "Пробег за поездку", "Заправлено, л", "Простой, ч", "Расход, л", "Остаток, л"]; ws.append(headers)
+    for cell in ws[2]: cell.font = Font(bold=True)
+    for log in logs: ws.append(list(log.values()))
+    for column_cells in ws.columns:
+        max_length = 0; column = get_column_letter(column_cells[0].column)
+        for cell in column_cells:
+            try:
+                if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
+            except: pass
+        ws.column_dimensions[column].width = (max_length + 2)
+    from io import BytesIO; virtual_workbook = BytesIO(); wb.save(virtual_workbook); virtual_workbook.seek(0)
+    return Response(content=virtual_workbook.read(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename=report_{car_id}_{start_date}_to_{end_date}.xlsx"})
+
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
+
 
 
 
