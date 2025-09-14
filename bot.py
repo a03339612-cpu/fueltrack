@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import time
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
@@ -34,11 +35,14 @@ async def send_welcome(message: types.Message):
     )
 
 async def main():
-    print("Бот запускается...")
+    print("Бот запускается через 5 секунд...")
+    # Добавляем небольшую задержку, чтобы веб-сервер точно успел стартовать
+    time.sleep(5)
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
     try:
+        print("Запуск бота...")
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Бот остановлен вручную.")
