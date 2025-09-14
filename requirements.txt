@@ -1,7 +1,5 @@
 fastapi
 uvicorn[standard]
-sqlalchemy
-aiosqlite
 aiogram
 openpyxl
-python-dotenv
+psycopg2-binary
