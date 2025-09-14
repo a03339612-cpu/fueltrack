@@ -1,63 +1,59 @@
 import asyncio
-import logging
 import os
+import sys
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
-from aiogram.types import WebAppInfo
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 
-# --- Конфигурация ---
-# Замените 'YOUR_BOT_TOKEN' на токен вашего бота
-# Для безопасности лучше хранить токен в переменной окружения
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8422469676:AAFhfdZsr4m0RD6FaHijswQQSG0BKn7x2-g") 
+# --- ВАЖНОЕ ИЗМЕНЕНИЕ: Проверка переменных окружения ---
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8422469676:AAFhfdZsr4m0RD6FaHijswQQSG0BKn7x2-g")
+WEB_APP_URL = os.getenv("WEBAPP_URL", "https://fueltrack-7puj.onrender.com")
 
-# Замените 'YOUR_WEBAPP_URL' на URL, где будет развернут ваш FastAPI сервер
-# Например, 'https://your-app-name.onrender.com'
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://fueltrack-7puj.onrender.com")
+if not BOT_TOKEN:
+    # Если токен не найден, выводим ошибку и завершаем работу
+    sys.exit("Ошибка: BOT_TOKEN не найден в переменных окружения!")
 
-# --- Инициализация ---
+if not WEB_APP_URL:
+    # Если URL не найден, выводим ошибку и завершаем работу
+    sys.exit("Ошибка: WEB_APP_URL не найден в переменных окружения!")
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
-# --- Обработчики команд ---
 
 @dp.message(CommandStart())
 async def send_welcome(message: types.Message):
     """
-    Этот обработчик будет отправлять приветственное сообщение
-    с кнопкой для запуска Web App при команде /start
+    Этот обработчик вызывается, когда пользователь отправляет команду /start
     """
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="🚀 Открыть калькулятор топлива",
-        web_app=WebAppInfo(url=WEBAPP_URL)
+    # Создаем кнопку, которая открывает веб-приложение
+    web_app_button = KeyboardButton(
+        text="Открыть калькулятор топлива",
+        web_app=WebAppInfo(url=WEB_APP_URL)
+    )
+    
+    # Создаем клавиатуру с одной этой кнопкой
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[web_app_button]],
+        resize_keyboard=True
     )
     
     await message.answer(
-        "Добро пожаловать в калькулятор расхода топлива!\n\n"
-        "Нажмите на кнопку ниже, чтобы начать.",
-        reply_markup=builder.as_markup()
+        "Добро пожаловать в калькулятор топлива! Нажмите на кнопку ниже, чтобы начать.",
+        reply_markup=keyboard
     )
 
-
-# --- Запуск бота ---
 async def main():
-    # Настройка логирования
-    logging.basicConfig(level=logging.INFO)
-    
-    # Проверка наличия токена
-    if BOT_TOKEN == "YOUR_BOT_TOKEN":
-        logging.critical("Необходимо указать токен бота в переменной BOT_TOKEN.")
-        return
-        
-    if WEBAPP_URL == "YOUR_WEBAPP_URL":
-        logging.critical("Необходимо указать URL веб-приложения в переменной WEBAPP_URL.")
-        return
-
-    # Запуск polling
+    """
+    Главная функция для запуска бота
+    """
+    print("Бот запускается...")
     await dp.start_polling(bot)
 
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Бот остановлен вручную.")
+
+
 
