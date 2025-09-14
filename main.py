@@ -9,57 +9,63 @@ import openpyxl
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
-# --- Настройка базы данных ---
-DB_FILE = "fuel_tracker.db"
+# --- ИЗМЕНЕНИЕ: Путь к базе данных на постоянном диске ---
+# Создаем директорию для данных, если ее нет
+DATA_DIR = "/data"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+DB_FILE = os.path.join(DATA_DIR, "fuel_tracker.db")
+
 
 def init_db():
-    if not os.path.exists(DB_FILE):
-        print("Creating database...")
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        
-        cursor.execute('PRAGMA foreign_keys = ON;')
-        
-        # ИСПРАВЛЕНИЕ: Полная и правильная команда для создания таблицы users
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_id TEXT UNIQUE NOT NULL
-        )''')
+    # Создаем базу данных при первом запуске, если файла нет
+    # ВАЖНО: Эта функция больше не проверяет наличие файла, 
+    # а просто гарантирует, что таблицы существуют.
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute('PRAGMA foreign_keys = ON;')
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_id TEXT UNIQUE NOT NULL
+    )''')
 
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS cars (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            plate TEXT,
-            current_mileage REAL DEFAULT 0,
-            current_fuel REAL DEFAULT 0,
-            consumption_driving REAL DEFAULT 8.0,
-            consumption_idle REAL DEFAULT 1.0,
-            is_active BOOLEAN DEFAULT 1
-        )''')
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS fuel_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            car_id INTEGER NOT NULL,
-            date DATE NOT NULL,
-            start_mileage REAL NOT NULL,
-            end_mileage REAL NOT NULL,
-            trip_distance REAL NOT NULL,
-            refueled REAL DEFAULT 0,
-            idle_hours REAL DEFAULT 0,
-            fuel_consumed_driving REAL NOT NULL,
-            fuel_consumed_idle REAL NOT NULL,
-            fuel_consumed_total REAL NOT NULL,
-            fuel_after_trip REAL NOT NULL,
-            final_fuel_level REAL NOT NULL,
-            FOREIGN KEY (car_id) REFERENCES cars (id) ON DELETE CASCADE
-        )''')
-        
-        conn.commit()
-        conn.close()
-        print("Database created successfully.")
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS cars (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        plate TEXT,
+        current_mileage REAL DEFAULT 0,
+        current_fuel REAL DEFAULT 0,
+        consumption_driving REAL DEFAULT 8.0,
+        consumption_idle REAL DEFAULT 1.0,
+        is_active BOOLEAN DEFAULT 1
+    )''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS fuel_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        car_id INTEGER NOT NULL,
+        date DATE NOT NULL,
+        start_mileage REAL NOT NULL,
+        end_mileage REAL NOT NULL,
+        trip_distance REAL NOT NULL,
+        refueled REAL DEFAULT 0,
+        idle_hours REAL DEFAULT 0,
+        fuel_consumed_driving REAL NOT NULL,
+        fuel_consumed_idle REAL NOT NULL,
+        fuel_consumed_total REAL NOT NULL,
+        fuel_after_trip REAL NOT NULL,
+        final_fuel_level REAL NOT NULL,
+        FOREIGN KEY (car_id) REFERENCES cars (id) ON DELETE CASCADE
+    )''')
+    
+    conn.commit()
+    conn.close()
+    print(f"Database initialized at {DB_FILE}")
 
 # --- Модели данных (Pydantic) ---
 class CarBase(BaseModel):
@@ -106,7 +112,7 @@ def get_db_conn():
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- API эндпоинты ---
+# --- API эндпоинты (без изменений) ---
 @app.get("/api/init/{user_id}", response_model=InitData)
 def get_initial_data(user_id: str):
     conn = get_db_conn(); cursor = conn.cursor(); cursor.execute("SELECT * FROM cars WHERE user_id = ?", (user_id,)); cars_data = cursor.fetchall(); cars = [dict(row) for row in cars_data]; active_car = next((car for car in cars if car['is_active']), None); active_car_id = active_car['id'] if active_car else None
