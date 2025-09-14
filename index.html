@@ -109,9 +109,9 @@
                 <input type="hidden" id="settings-car-id">
                 <div class="input-group"><label for="settings-start-mileage">Начальный пробег (км)</label><input type="number" id="settings-start-mileage" class="input-field" required></div>
                 <div class="input-group"><label for="settings-initial-fuel">Начальный остаток (л)</label><input type="number" step="0.01" id="settings-initial-fuel" class="input-field" required></div>
-                <div class="input-group"><label for="settings-consumption-driving">Расход в движении (л/100 км)</label><input type="number" step="0.1" id="settings-consumption-driving" class="input-field" required></div>
-                <!-- ИЗМЕНЕНИЕ: Добавлен step="0.1" для дробного ввода -->
-                <div class="input-group"><label for="settings-consumption-idle">Расход на простое (л/час)</label><input type="number" step="0.1" id="settings-consumption-idle" class="input-field" required></div>
+                <div class="input-group"><label for="settings-consumption-driving">Расход в движении (л/100 км)</label><input type="number" step="0.01" id="settings-consumption-driving" class="input-field" required></div>
+                <!-- ИЗМЕНЕНИЕ: Добавлен step="0.01" для сотых долей -->
+                <div class="input-group"><label for="settings-consumption-idle">Расход на простое (л/час)</label><input type="number" step="0.01" id="settings-consumption-idle" class="input-field" required></div>
                 <div class="flex gap-4 mt-4">
                     <button type="button" id="close-settings-btn" class="btn btn-secondary">Отмена</button>
                     <button type="submit" class="btn btn-primary">Сохранить</button>
@@ -258,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const logDiv = document.createElement('div');
                 logDiv.className = 'table-like pt-2';
                 const tripDist = log.trip_distance > 0 ? `+${log.trip_distance.toFixed(0)}` : '0';
-                // ИЗМЕНЕНИЕ: Округление до сотых в таблице
                 logDiv.innerHTML = `<div>${new Date(log.date).toLocaleDateString('ru-RU')}</div><div class="text-right">${tripDist} км</div><div class="text-right text-red-500">-${log.fuel_consumed_total.toFixed(2)} л</div><div class="text-right font-semibold">${log.final_fuel_level.toFixed(2)} л</div>${log.refueled > 0 ? `<div class="col-span-4 text-right text-green-600 text-xs pt-1">+${log.refueled.toFixed(2)} л заправка</div>` : ''}`;
                 DOMElements.recentLogsContainer.appendChild(logDiv);
             });
@@ -293,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     DOMElements.currentCarName.textContent = activeCar.name;
                     DOMElements.currentCarPlate.textContent = activeCar.plate || '';
                     DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
-                    // ИЗМЕНЕНИЕ: Округление до сотых на главном экране
                     DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
                     DOMElements.endMileageInput.min = activeCar.current_mileage;
                     loadRecentLogs(activeCar.id);
