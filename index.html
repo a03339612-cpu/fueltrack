@@ -7,45 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --tg-theme-bg-color: #ffffff;
-            --tg-theme-text-color: #000000;
-            --tg-theme-hint-color: #999999;
-            --tg-theme-link-color: #2481cc;
-            --tg-theme-button-color: #2481cc;
-            --tg-theme-button-text-color: #ffffff;
-            --tg-theme-secondary-bg-color: #f4f4f5;
-        }
-        body {
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 1rem;
-            box-sizing: border-box;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-        body.ready {
-            opacity: 1;
-        }
-        .card {
-            background-color: var(--tg-theme-secondary-bg-color);
-            border-radius: 0.75rem;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
-        .input-group { margin-bottom: 1rem; }
-        .input-group label { display: block; color: var(--tg-theme-hint-color); margin-bottom: 0.5rem; font-size: 0.875rem; }
-        .input-field { width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--tg-theme-bg-color); background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); font-size: 1rem; box-sizing: border-box; }
-        .btn { padding: 0.875rem; border-radius: 0.5rem; border: none; font-weight: 600; cursor: pointer; transition: background-color 0.2s; width: 100%; }
-        .btn-primary { background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); }
-        .btn-secondary { background-color: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-button-color); border: 1px solid var(--tg-theme-button-color); }
-        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background-color: var(--tg-theme-bg-color); padding: 1.5rem; border-radius: 1rem; width: 90%; max-width: 400px; }
-        .hidden { display: none; }
-        .table-like { display: grid; grid-template-columns: 1fr repeat(3, auto); gap: 0.5rem 1rem; align-items: center; }
+        :root { /* ... CSS ... */ }
+        body { /* ... CSS ... */ }
+        .card { /* ... CSS ... */ }
+        .input-group { /* ... CSS ... */ }
+        .input-field { /* ... CSS ... */ }
+        .btn { /* ... CSS ... */ }
+        .modal-backdrop { /* ... CSS ... */ }
+        .table-like { /* ... CSS ... */ }
     </style>
 </head>
 <body>
@@ -53,52 +22,7 @@
     <div id="loader" class="text-center p-8"><p class="text-lg animate-pulse">Загрузка данных...</p></div>
 
     <div id="main-screen" class="hidden">
-        <div class="card">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h1 class="text-xl font-bold" id="current-car-name">Мое авто</h1>
-                    <p class="text-sm" id="current-car-plate"></p>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button id="main-settings-btn" class="text-2xl">⚙️</button>
-                    <button id="select-car-btn" class="text-sm text-blue-500">Сменить</button>
-                </div>
-            </div>
-            <div>
-                <p>Текущий пробег: <strong id="current-mileage">0</strong> км</p>
-                <p>Остаток в баке: <strong id="current-fuel">0.00</strong> л</p>
-            </div>
-        </div>
-        
-        <div id="recent-logs-card" class="card hidden">
-            <h2 class="text-lg font-bold mb-4">Последние расчеты</h2>
-            <div id="recent-logs-container" class="text-sm space-y-2"></div>
-        </div>
-
-        <div class="card">
-            <h2 class="text-lg font-bold mb-4">Расчет поездки</h2>
-            <form id="trip-form">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="input-group"><label for="end-mileage">Конечный пробег</label><input type="number" id="end-mileage" class="input-field" required></div>
-                    <div class="input-group"><label for="trip-date">Дата</label><input type="date" id="trip-date" class="input-field" required></div>
-                    <div class="input-group"><label for="refueled">Заправлено (л)</label><input type="number" step="0.01" id="refueled" class="input-field" value="0"></div>
-                    <div class="input-group"><label for="idle-hours">Простой (часы)</label><input type="number" step="0.1" id="idle-hours" class="input-field" value="0"></div>
-                </div>
-                <div class="flex gap-4 mt-4">
-                    <button type="button" id="reset-btn" class="btn btn-secondary">Сброс</button>
-                    <button type="submit" class="btn btn-primary">Рассчитать</button>
-                </div>
-            </form>
-        </div>
-        
-        <div class="card">
-             <h2 class="text-lg font-bold mb-4">Отчет</h2>
-             <div class="grid grid-cols-2 gap-4">
-                 <div class="input-group"><label for="report-start-date">Дата начала</label><input type="date" id="report-start-date" class="input-field"></div>
-                 <div class="input-group"><label for="report-end-date">Дата окончания</label><input type="date" id="report-end-date" class="input-field"></div>
-             </div>
-            <button id="download-report-btn" class="btn btn-secondary mt-2">Скачать отчет (XLSX)</button>
-        </div>
+        <!-- ... HTML ... -->
     </div>
 
     <!-- Модальные окна -->
@@ -107,11 +31,10 @@
             <h2 class="text-xl font-bold mb-4">Настройки авто</h2>
             <form id="settings-form">
                 <input type="hidden" id="settings-car-id">
-                <div class="input-group"><label for="settings-start-mileage">Начальный пробег (км)</label><input type="number" id="settings-start-mileage" class="input-field" required></div>
-                <div class="input-group"><label for="settings-initial-fuel">Начальный остаток (л)</label><input type="number" step="0.01" id="settings-initial-fuel" class="input-field" required></div>
-                <div class="input-group"><label for="settings-consumption-driving">Расход в движении (л/100 км)</label><input type="number" step="0.01" id="settings-consumption-driving" class="input-field" required></div>
-                <!-- ИЗМЕНЕНИЕ: Добавлен step="0.01" для сотых долей -->
-                <div class="input-group"><label for="settings-consumption-idle">Расход на простое (л/час)</label><input type="number" step="0.01" id="settings-consumption-idle" class="input-field" required></div>
+                <div class="input-group"><label>Начальный пробег (км)</label><input type="number" id="settings-start-mileage" class="input-field" required></div>
+                <div class="input-group"><label>Начальный остаток (л)</label><input type="number" step="0.01" id="settings-initial-fuel" class="input-field" required></div>
+                <div class="input-group"><label>Расход в движении (л/100 км)</label><input type="number" step="0.01" id="settings-consumption-driving" class="input-field" required></div>
+                <div class="input-group"><label>Расход на простое (л/час)</label><input type="number" step="0.01" id="settings-consumption-idle" class="input-field" required></div>
                 <div class="flex gap-4 mt-4">
                     <button type="button" id="close-settings-btn" class="btn btn-secondary">Отмена</button>
                     <button type="submit" class="btn btn-primary">Сохранить</button>
@@ -121,25 +44,11 @@
     </div>
     
     <div id="cars-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h2 class="text-xl font-bold mb-4">Мои автомобили</h2>
-            <div id="car-list" class="mb-4 space-y-2"></div>
-            <hr class="my-4">
-            <h3 class="text-lg font-bold mb-2">Добавить новое авто</h3>
-            <form id="add-car-form">
-                 <div class="input-group"><label for="car-name">Марка и модель</label><input type="text" id="car-name" class="input-field" placeholder="Напр. Toyota Camry" required></div>
-                 <div class="input-group"><label for="car-plate">Гос. номер</label><input type="text" id="car-plate" class="input-field" placeholder="Напр. A123BC777"></div>
-                <button type="submit" class="btn btn-primary">Добавить авто</button>
-                 <button type="button" id="close-cars-btn" class="btn btn-secondary mt-2">Закрыть</button>
-            </form>
-        </div>
+        <!-- ... HTML ... -->
     </div>
     
     <div id="alert-modal" class="modal-backdrop hidden">
-        <div class="modal-content text-center">
-            <p id="alert-message" class="mb-4 text-lg" style="white-space: pre-wrap;"></p>
-            <button id="close-alert-btn" class="btn btn-primary">OK</button>
-        </div>
+        <!-- ... HTML ... -->
     </div>
 
     <div id="edit-car-modal" class="modal-backdrop hidden">
@@ -164,110 +73,20 @@ document.addEventListener('DOMContentLoaded', () => {
         tg.ready();
         tg.expand();
 
-        const state = {
-            userId: String(tg.initDataUnsafe?.user?.id || 'test_user_123'),
-            cars: [],
-            activeCarId: null,
-        };
+        const state = { /* ... */ };
+        const DOMElements = { /* ... */ };
 
-        const DOMElements = {
-            loader: document.getElementById('loader'),
-            mainScreen: document.getElementById('main-screen'),
-            currentCarName: document.getElementById('current-car-name'),
-            currentCarPlate: document.getElementById('current-car-plate'),
-            currentMileage: document.getElementById('current-mileage'),
-            currentFuel: document.getElementById('current-fuel'),
-            tripForm: document.getElementById('trip-form'),
-            endMileageInput: document.getElementById('end-mileage'),
-            refueledInput: document.getElementById('refueled'),
-            idleHoursInput: document.getElementById('idle-hours'),
-            tripDateInput: document.getElementById('trip-date'),
-            settingsModal: document.getElementById('settings-modal'),
-            settingsForm: document.getElementById('settings-form'),
-            settingsCarId: document.getElementById('settings-car-id'),
-            settingsStartMileage: document.getElementById('settings-start-mileage'),
-            settingsInitialFuel: document.getElementById('settings-initial-fuel'),
-            settingsConsumptionDriving: document.getElementById('settings-consumption-driving'),
-            settingsConsumptionIdle: document.getElementById('settings-consumption-idle'),
-            carsModal: document.getElementById('cars-modal'),
-            carList: document.getElementById('car-list'),
-            addCarForm: document.getElementById('add-car-form'),
-            alertModal: document.getElementById('alert-modal'),
-            alertMessage: document.getElementById('alert-message'),
-            recentLogsCard: document.getElementById('recent-logs-card'),
-            recentLogsContainer: document.getElementById('recent-logs-container'),
-            reportStartDate: document.getElementById('report-start-date'),
-            reportEndDate: document.getElementById('report-end-date'),
-            editCarModal: document.getElementById('edit-car-modal'),
-            editCarForm: document.getElementById('edit-car-form'),
-            editCarId: document.getElementById('edit-car-id'),
-            editCarName: document.getElementById('edit-car-name'),
-            editCarPlate: document.getElementById('edit-car-plate'),
-        };
-
-        const showModal = (modalName) => {
-            if (modalName === 'settings') DOMElements.settingsModal.classList.remove('hidden');
-            if (modalName === 'cars') DOMElements.carsModal.classList.remove('hidden');
-            if (modalName === 'editCar') DOMElements.editCarModal.classList.remove('hidden');
-        };
-
-        const hideModals = () => {
-            DOMElements.settingsModal.classList.add('hidden');
-            DOMElements.carsModal.classList.add('hidden');
-            DOMElements.editCarModal.classList.add('hidden');
-        };
-        
-        const customShowAlert = (message) => {
-            DOMElements.alertMessage.textContent = message;
-            DOMElements.alertModal.classList.remove('hidden');
-        };
-
-        const apiRequest = async (endpoint, method = 'GET', body = null) => {
-            try {
-                const response = await fetch(`/api${endpoint}`, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: body ? JSON.stringify(body) : null
-                });
-                if (!response.ok) {
-                    let errorMessage = `Ошибка ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData.detail) errorMessage = Array.isArray(errorData.detail) ? errorData.detail[0].msg : errorData.detail;
-                    } catch (e) {}
-                    throw new Error(errorMessage);
-                }
-                return response.headers.get("content-type")?.includes("application/json") ? response.json() : response;
-            } catch (error) {
-                customShowAlert(`Сетевая ошибка: ${error.message}`);
-                throw error;
-            }
-        };
-
-        const renderRecentLogs = (logs) => {
-            if (!logs || logs.length === 0) {
-                DOMElements.recentLogsCard.classList.add('hidden');
-                return;
-            }
-            DOMElements.recentLogsContainer.innerHTML = '';
-            const header = document.createElement('div');
-            header.className = 'table-like pb-2 mb-2 border-b border-gray-300';
-            header.innerHTML = `<div class="font-semibold text-gray-500 text-xs">ДАТА</div><div class="font-semibold text-gray-500 text-xs text-right">ПРОБЕГ</div><div class="font-semibold text-gray-500 text-xs text-right">РАСХОД</div><div class="font-semibold text-gray-500 text-xs text-right">ОСТАТОК</div>`;
-            DOMElements.recentLogsContainer.appendChild(header);
-            logs.forEach(log => {
-                const logDiv = document.createElement('div');
-                logDiv.className = 'table-like pt-2';
-                const tripDist = log.trip_distance > 0 ? `+${log.trip_distance.toFixed(0)}` : '0';
-                logDiv.innerHTML = `<div>${new Date(log.date).toLocaleDateString('ru-RU')}</div><div class="text-right">${tripDist} км</div><div class="text-right text-red-500">-${log.fuel_consumed_total.toFixed(2)} л</div><div class="text-right font-semibold">${log.final_fuel_level.toFixed(2)} л</div>${log.refueled > 0 ? `<div class="col-span-4 text-right text-green-600 text-xs pt-1">+${log.refueled.toFixed(2)} л заправка</div>` : ''}`;
-                DOMElements.recentLogsContainer.appendChild(logDiv);
-            });
-            DOMElements.recentLogsCard.classList.remove('hidden');
-        };
+        const showModal = (modalName) => { /* ... */ };
+        const hideModals = () => { /* ... */ };
+        const customShowAlert = (message) => { /* ... */ };
+        const apiRequest = async (endpoint, method = 'GET', body = null) => { /* ... */ };
+        const renderRecentLogs = (logs) => { /* ... */ };
 
         const loadRecentLogs = async (carId) => {
             try {
                 if (carId) {
-                    const logs = await apiRequest(`/logs/${carId}`);
+                    // ИЗМЕНЕНИЕ: Отправляем user_id
+                    const logs = await apiRequest(`/logs/${carId}/${state.userId}`);
                     renderRecentLogs(logs);
                 } else {
                      DOMElements.recentLogsCard.classList.add('hidden');
@@ -275,160 +94,20 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) { console.error("Failed to load logs", e); }
         };
 
-        const updateUI = () => {
-            DOMElements.carList.innerHTML = '';
-            
-            if (!state.activeCarId || state.cars.length === 0) {
-                DOMElements.currentCarName.textContent = 'Нет авто';
-                DOMElements.currentCarPlate.textContent = 'Добавьте автомобиль';
-                DOMElements.currentMileage.textContent = '0';
-                DOMElements.currentFuel.textContent = '0.00';
-                DOMElements.recentLogsCard.classList.add('hidden');
-                DOMElements.addCarForm.reset();
-                showModal('cars');
-            } else {
-                 const activeCar = state.cars.find(c => c.id === state.activeCarId);
-                if (activeCar) {
-                    DOMElements.currentCarName.textContent = activeCar.name;
-                    DOMElements.currentCarPlate.textContent = activeCar.plate || '';
-                    DOMElements.currentMileage.textContent = activeCar.current_mileage.toFixed(0);
-                    DOMElements.currentFuel.textContent = activeCar.current_fuel.toFixed(2);
-                    DOMElements.endMileageInput.min = activeCar.current_mileage;
-                    loadRecentLogs(activeCar.id);
-                }
-                state.cars.forEach(car => {
-                    const carDiv = document.createElement('div');
-                    carDiv.className = `flex justify-between items-center p-3 rounded-lg ${car.id === state.activeCarId ? 'bg-blue-100' : 'bg-gray-100'}`;
-                    carDiv.innerHTML = `<div><p class="font-bold">${car.name}</p><p class="text-sm text-gray-500">${car.plate || ''}</p></div><div class="flex items-center space-x-3"><button data-car-id="${car.id}" class="edit-btn text-xl">✏️</button><button data-car-id="${car.id}" class="delete-btn text-xl">🗑️</button>${car.id !== state.activeCarId ? `<button data-car-id="${car.id}" class="select-btn text-sm text-blue-500">Выбрать</button>` : ''}</div>`;
-                    DOMElements.carList.appendChild(carDiv);
-                    
-                    carDiv.querySelector('.edit-btn').addEventListener('click', (e) => openEditCarModal(parseInt(e.currentTarget.dataset.carId)));
-                    carDiv.querySelector('.delete-btn').addEventListener('click', (e) => handleDeleteCar(parseInt(e.currentTarget.dataset.carId)));
-                    
-                    const selectBtn = carDiv.querySelector('.select-btn');
-                    if (selectBtn) {
-                        selectBtn.addEventListener('click', async (e) => {
-                            try {
-                                const carId = parseInt(e.currentTarget.dataset.carId);
-                                await apiRequest(`/cars/activate/${carId}/${state.userId}`, 'PUT');
-                                state.activeCarId = carId;
-                                updateUI(); hideModals();
-                            } catch (err) { console.error("Failed to activate car", err); }
-                        });
-                    }
-                });
-            }
-            
-            DOMElements.mainScreen.classList.remove('hidden');
-            DOMElements.loader.classList.add('hidden');
-            document.body.classList.add('ready');
-        };
-
-        const openEditCarModal = (carId) => {
-            const car = state.cars.find(c => c.id === carId);
-            if (car) {
-                DOMElements.editCarId.value = car.id;
-                DOMElements.editCarName.value = car.name;
-                DOMElements.editCarPlate.value = car.plate || '';
-                showModal('editCar');
-            }
-        };
-        
-        const handleDeleteCar = async (carId) => {
-            const car = state.cars.find(c => c.id === carId);
-            if (!car) return;
-            tg.showConfirm(`Удалить "${car.name}" и всю историю?`, async (confirmed) => {
-                if (confirmed) {
-                    try {
-                        await apiRequest(`/cars/${carId}/${state.userId}`, 'DELETE');
-                        customShowAlert(`Автомобиль "${car.name}" удален.`);
-                        
-                        const carIndex = state.cars.findIndex(c => c.id === carId);
-                        if (carIndex > -1) {
-                            state.cars.splice(carIndex, 1);
-                        }
-
-                        if (state.activeCarId === carId) {
-                            state.activeCarId = state.cars.length > 0 ? state.cars[0].id : null;
-                        }
-
-                        updateUI();
-                        if (state.cars.length > 0) {
-                             hideModals();
-                        }
-                    } catch (error) { console.error('Ошибка удаления', error); }
-                }
-            });
-        };
-        
-        const openSettingsForCar = (carId) => {
-             const car = state.cars.find(c => c.id === carId);
-            if (car) {
-                DOMElements.settingsCarId.value = car.id;
-                DOMElements.settingsStartMileage.value = car.current_mileage || 0;
-                DOMElements.settingsInitialFuel.value = car.current_fuel || 0;
-                DOMElements.settingsConsumptionDriving.value = car.consumption_driving || 8.0;
-                DOMElements.settingsConsumptionIdle.value = car.consumption_idle || 1.0;
-                showModal('settings');
-            }
-        };
-        
-        const initApp = async (isReload = false) => {
-            if (!isReload) {
-                const now = new Date();
-                DOMElements.tripDateInput.valueAsDate = now;
-                DOMElements.reportEndDate.valueAsDate = now;
-                DOMElements.reportStartDate.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            }
-            try {
-                const data = await apiRequest(`/init/${state.userId}`);
-                state.cars = data.cars; 
-                state.activeCarId = data.active_car_id;
-                updateUI();
-            } catch (error) {
-                DOMElements.loader.classList.add('hidden');
-                document.body.classList.add('ready');
-                customShowAlert("Не удалось загрузить данные. Проверьте интернет-соединение.");
-            }
-        };
+        const updateUI = () => { /* ... */ };
+        const openEditCarModal = (carId) => { /* ... */ };
+        const handleDeleteCar = async (carId) => { /* ... */ };
+        const openSettingsForCar = (carId) => { /* ... */ };
+        const initApp = async (isReload = false) => { /* ... */ };
         
         // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
-        
-        DOMElements.tripForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const activeCar = state.cars.find(c => c.id === state.activeCarId);
-            if (!activeCar) return customShowAlert('Сначала выберите автомобиль.');
-            const payload = {
-                car_id: state.activeCarId, user_id: state.userId,
-                end_mileage: parseFloat(DOMElements.endMileageInput.value),
-                refueled: parseFloat(DOMElements.refueledInput.value) || 0,
-                idle_hours: parseFloat(DOMElements.idleHoursInput.value) || 0,
-                date: DOMElements.tripDateInput.value, start_mileage: activeCar.current_mileage,
-                start_fuel: activeCar.current_fuel, consumption_driving: activeCar.consumption_driving,
-                consumption_idle: activeCar.consumption_idle,
-            };
-            if (!payload.end_mileage || !payload.date) return customShowAlert('Заполните конечный пробег и дату.');
-            if (payload.end_mileage < payload.start_mileage) return customShowAlert('Конечный пробег не может быть меньше начального.');
-            tg.showConfirm(`Рассчитать поездку?`, async (confirmed) => {
-                if (confirmed) {
-                    try {
-                        const result = await apiRequest('/logs', 'POST', payload);
-                        const carIndex = state.cars.findIndex(c => c.id === state.activeCarId);
-                        state.cars[carIndex].current_mileage = result.new_mileage;
-                        state.cars[carIndex].current_fuel = result.new_fuel_level;
-                        customShowAlert(`Расчет завершен!\nНовый остаток: ${result.new_fuel_level.toFixed(2)} л.`);
-                        DOMElements.tripForm.reset();
-                        DOMElements.tripDateInput.valueAsDate = new Date();
-                        updateUI();
-                    } catch (e) { console.error("Ошибка при расчете поездки", e); }
-                }
-            });
-        });
         
         DOMElements.settingsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const carId = parseInt(DOMElements.settingsCarId.value);
+            // ИЗМЕНЕНИЕ: Добавляем user_id в payload
             const payload = {
+                user_id: state.userId,
                 current_mileage: parseFloat(DOMElements.settingsStartMileage.value),
                 current_fuel: parseFloat(DOMElements.settingsInitialFuel.value),
                 consumption_driving: parseFloat(DOMElements.settingsConsumptionDriving.value),
@@ -436,36 +115,23 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             try {
                 const updatedCarData = await apiRequest(`/cars/settings/${carId}`, 'PUT', payload);
-                const carIndex = state.cars.findIndex(c => c.id === carId);
-                if (carIndex !== -1) {
-                    Object.assign(state.cars[carIndex], updatedCarData);
-                }
-                updateUI(); hideModals(); customShowAlert('Настройки сохранены.');
+                // ...
             } catch (error) { console.error('Ошибка сохранения настроек', error); }
         });
 
         DOMElements.editCarForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const carId = parseInt(DOMElements.editCarId.value);
-            const payload = { name: DOMElements.editCarName.value, plate: DOMElements.editCarPlate.value };
+            // ИЗМЕНЕНИЕ: Добавляем user_id в payload
+            const payload = { 
+                user_id: state.userId,
+                name: DOMElements.editCarName.value, 
+                plate: DOMElements.editCarPlate.value 
+            };
             try {
                 await apiRequest(`/cars/details/${carId}`, 'PUT', payload);
-                const carIndex = state.cars.findIndex(c => c.id === carId);
-                state.cars[carIndex].name = payload.name; state.cars[carIndex].plate = payload.plate;
-                updateUI(); hideModals(); customShowAlert('Данные автомобиля обновлены.');
+                // ...
             } catch (error) { console.error('Ошибка при редактировании авто', error); }
-        });
-
-        DOMElements.addCarForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = { user_id: state.userId, name: document.getElementById('car-name').value, plate: document.getElementById('car-plate').value };
-            if (!payload.name) return customShowAlert('Введите марку и модель.');
-            try {
-                const newCar = await apiRequest('/cars', 'POST', payload);
-                await initApp(true);
-                customShowAlert(`Автомобиль "${newCar.name}" добавлен. Теперь заполните его начальные данные.`);
-                openSettingsForCar(newCar.id);
-            } catch(error) { console.error('Ошибка добавления авто', error); }
         });
         
         document.getElementById('download-report-btn').addEventListener('click', async () => {
@@ -474,39 +140,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!startDate || !endDate) return customShowAlert('Выберите начальную и конечную дату для отчета.');
             if (!state.activeCarId) return customShowAlert('Выберите автомобиль.');
             try {
-                const response = await apiRequest(`/report?car_id=${state.activeCarId}&start_date=${startDate}&end_date=${endDate}`);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                const car = state.cars.find(c => c.id === state.activeCarId);
-                a.download = `report_${car.name.replace(/\s+/g, '_')}_${startDate}_${endDate}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+                // ИЗМЕНЕНИЕ: Отправляем user_id
+                const response = await apiRequest(`/report?car_id=${state.activeCarId}&user_id=${state.userId}&start_date=${startDate}&end_date=${endDate}`);
+                // ...
             } catch (error) { console.error('Ошибка скачивания отчета', error); }
         });
 
-        document.getElementById('main-settings-btn').addEventListener('click', () => { if (state.activeCarId) openSettingsForCar(state.activeCarId); else customShowAlert('Сначала добавьте авто.'); });
-        document.getElementById('select-car-btn').addEventListener('click', () => showModal('cars'));
-        document.getElementById('reset-btn').addEventListener('click', () => { DOMElements.tripForm.reset(); DOMElements.tripDateInput.valueAsDate = new Date(); });
-        document.getElementById('close-settings-btn').addEventListener('click', hideModals);
-        document.getElementById('close-cars-btn').addEventListener('click', hideModals);
-        document.getElementById('close-edit-car-btn').addEventListener('click', hideModals);
-        document.getElementById('close-alert-btn').addEventListener('click', () => DOMElements.alertModal.classList.add('hidden'));
-
+        // ... (остальные обработчики)
+        
         // Запуск
         initApp();
 
-    } catch (e) {
-        document.body.innerHTML = `<div style="padding: 20px; color: red; text-align: center;">Критическая ошибка.<br>${e.message}</div>`;
-        document.body.classList.add('ready');
-    }
+    } catch (e) { /* ... */ }
 });
 </script>
 
 </body>
 </html>
+
+
+
 
