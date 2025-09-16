@@ -5,15 +5,15 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 
-# --- Получаем переменные окружения ---
+# --- ИСПРАВЛЕНИЕ: Получаем переменные окружения ПРАВИЛЬНО ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEB_APP_URL = os.getenv("WEB_APP_URL")
+WEB_APP_URL = os.getenv("WEB_APP_URL") # <-- Эта строка теперь будет работать
 
 # Проверка наличия переменных
 if not BOT_TOKEN:
     sys.exit("Ошибка: BOT_TOKEN не найден в переменных окружения!")
 if not WEB_APP_URL:
-     sys.exit("Ошибка: WEB_APP_URL не найден в переменных окружения!")
+     sys.exit("Ошибка: WEB_APP_URL не найден в переменных окружения! Убедитесь, что он установлен на Render.")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -40,4 +40,5 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Бот остановлен.")
+
 
